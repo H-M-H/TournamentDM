@@ -13,6 +13,7 @@ CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEner
 	m_Dir = Direction;
 	m_Bounces = 0;
 	m_EvalTick = 0;
+    m_Arena = GameServer()->m_apPlayers[m_Owner]->m_Arena;
 	GameWorld()->InsertEntity(this);
 	DoBounce();
 }
@@ -23,7 +24,7 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 	vec2 At;
 	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
 	CCharacter *pHit = GameServer()->m_World.IntersectCharacter(m_Pos, To, 0.f, At, pOwnerChar);
-	if(!pHit)
+    if(!pHit || pHit->m_Arena != m_Arena)
 		return false;
 
 	m_From = From;
@@ -66,7 +67,7 @@ void CLaser::DoBounce()
 			if(m_Bounces > GameServer()->Tuning()->m_LaserBounceNum)
 				m_Energy = -1;
 
-			GameServer()->CreateSound(m_Pos, SOUND_RIFLE_BOUNCE);
+            GameServer()->CreateSound(m_Pos, SOUND_RIFLE_BOUNCE, GameServer()->CmaskArena(m_Arena));
 		}
 	}
 	else
@@ -98,8 +99,21 @@ void CLaser::TickPaused()
 
 void CLaser::Snap(int SnappingClient)
 {
-	if(NetworkClipped(SnappingClient))
-		return;
+    if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS || GameServer()->m_apPlayers[SnappingClient]->m_Arena == -1)
+    {
+        if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS &&
+                GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID != -1 &&
+                GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID] &&
+                GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena)
+            return;
+    }
+    else
+    {
+        if(GameServer()->m_apPlayers[SnappingClient]->m_Arena != m_Arena)
+            return;
+        if(NetworkClipped(SnappingClient))
+            return;
+    }
 
 	CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID, sizeof(CNetObj_Laser)));
 	if(!pObj)

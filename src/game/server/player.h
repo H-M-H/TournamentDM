@@ -21,8 +21,8 @@ public:
 	void TryRespawn();
 	void Respawn();
 	void SetTeam(int Team, bool DoChatMsg=true);
-	int GetTeam() const { return m_Team; };
-	int GetCID() const { return m_ClientID; };
+    int GetTeam() const { return m_Team; }
+    int GetCID() const { return m_ClientID; }
 
 	void Tick();
 	void PostTick();
@@ -79,6 +79,11 @@ public:
 	bool m_ForceBalanced;
 	int m_LastActionTick;
 	int m_TeamChangeTick;
+
+    int m_Arena;
+    int m_Victories;
+    int m_Losses;
+
 	struct
 	{
 		int m_TargetX;

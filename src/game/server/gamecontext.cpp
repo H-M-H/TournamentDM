@@ -12,6 +12,7 @@
 #include "gamemodes/dm.h"
 #include "gamemodes/tdm.h"
 #include "gamemodes/ctf.h"
+#include "gamemodes/tourndm.h"
 #include "gamemodes/mod.h"
 
 enum
@@ -85,7 +86,7 @@ class CCharacter *CGameContext::GetPlayerChar(int ClientID)
 	return m_apPlayers[ClientID]->GetCharacter();
 }
 
-void CGameContext::CreateDamageInd(vec2 Pos, float Angle, int Amount)
+void CGameContext::CreateDamageInd(vec2 Pos, float Angle, int Amount, int ArenaID)
 {
 	float a = 3 * 3.14159f / 2 + Angle;
 	//float a = get_angle(dir);
@@ -94,7 +95,7 @@ void CGameContext::CreateDamageInd(vec2 Pos, float Angle, int Amount)
 	for(int i = 0; i < Amount; i++)
 	{
 		float f = mix(s, e, float(i+1)/float(Amount+2));
-		CNetEvent_DamageInd *pEvent = (CNetEvent_DamageInd *)m_Events.Create(NETEVENTTYPE_DAMAGEIND, sizeof(CNetEvent_DamageInd));
+        CNetEvent_DamageInd *pEvent = (CNetEvent_DamageInd *)m_Events.Create(NETEVENTTYPE_DAMAGEIND, sizeof(CNetEvent_DamageInd), CmaskArena(ArenaID));
 		if(pEvent)
 		{
 			pEvent->m_X = (int)Pos.x;
@@ -104,10 +105,10 @@ void CGameContext::CreateDamageInd(vec2 Pos, float Angle, int Amount)
 	}
 }
 
-void CGameContext::CreateHammerHit(vec2 Pos)
+void CGameContext::CreateHammerHit(vec2 Pos, int ArenaID)
 {
 	// create the event
-	CNetEvent_HammerHit *pEvent = (CNetEvent_HammerHit *)m_Events.Create(NETEVENTTYPE_HAMMERHIT, sizeof(CNetEvent_HammerHit));
+    CNetEvent_HammerHit *pEvent = (CNetEvent_HammerHit *)m_Events.Create(NETEVENTTYPE_HAMMERHIT, sizeof(CNetEvent_HammerHit), CmaskArena(ArenaID));
 	if(pEvent)
 	{
 		pEvent->m_X = (int)Pos.x;
@@ -116,10 +117,10 @@ void CGameContext::CreateHammerHit(vec2 Pos)
 }
 
 
-void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamage)
+void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamage, int ArenaID)
 {
 	// create the event
-	CNetEvent_Explosion *pEvent = (CNetEvent_Explosion *)m_Events.Create(NETEVENTTYPE_EXPLOSION, sizeof(CNetEvent_Explosion));
+    CNetEvent_Explosion *pEvent = (CNetEvent_Explosion *)m_Events.Create(NETEVENTTYPE_EXPLOSION, sizeof(CNetEvent_Explosion), CmaskArena(ArenaID));
 	if(pEvent)
 	{
 		pEvent->m_X = (int)Pos.x;
@@ -135,6 +136,9 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamag
 		int Num = m_World.FindEntities(Pos, Radius, (CEntity**)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
 		for(int i = 0; i < Num; i++)
 		{
+            if(m_apPlayers[Owner]->m_Arena != apEnts[i]->GetPlayer()->m_Arena)
+                continue;
+
 			vec2 Diff = apEnts[i]->m_Pos - Pos;
 			vec2 ForceDir(0,1);
 			float l = length(Diff);
@@ -143,7 +147,7 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamag
 			l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
 			float Dmg = 6 * l;
 			if((int)Dmg)
-				apEnts[i]->TakeDamage(ForceDir*Dmg*2, (int)Dmg, Owner, Weapon);
+                apEnts[i]->TakeDamage(ForceDir*Dmg*2, (int)Dmg, Owner, Weapon);
 		}
 	}
 }
@@ -160,10 +164,10 @@ void create_smoke(vec2 Pos)
 	}
 }*/
 
-void CGameContext::CreatePlayerSpawn(vec2 Pos)
+void CGameContext::CreatePlayerSpawn(vec2 Pos, int ArenaID)
 {
 	// create the event
-	CNetEvent_Spawn *ev = (CNetEvent_Spawn *)m_Events.Create(NETEVENTTYPE_SPAWN, sizeof(CNetEvent_Spawn));
+    CNetEvent_Spawn *ev = (CNetEvent_Spawn *)m_Events.Create(NETEVENTTYPE_SPAWN, sizeof(CNetEvent_Spawn), CmaskArena(ArenaID));
 	if(ev)
 	{
 		ev->m_X = (int)Pos.x;
@@ -171,10 +175,10 @@ void CGameContext::CreatePlayerSpawn(vec2 Pos)
 	}
 }
 
-void CGameContext::CreateDeath(vec2 Pos, int ClientID)
+void CGameContext::CreateDeath(vec2 Pos, int ClientID, int ArenaID)
 {
 	// create the event
-	CNetEvent_Death *pEvent = (CNetEvent_Death *)m_Events.Create(NETEVENTTYPE_DEATH, sizeof(CNetEvent_Death));
+    CNetEvent_Death *pEvent = (CNetEvent_Death *)m_Events.Create(NETEVENTTYPE_DEATH, sizeof(CNetEvent_Death), CmaskArena(ArenaID));
 	if(pEvent)
 	{
 		pEvent->m_X = (int)Pos.x;
@@ -447,7 +451,7 @@ void CGameContext::OnTick()
 				bool aVoteChecked[MAX_CLIENTS] = {0};
 				for(int i = 0; i < MAX_CLIENTS; i++)
 				{
-					if(!m_apPlayers[i] || m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS || aVoteChecked[i])	// don't count in votes by spectators
+                    if(!m_apPlayers[i] || (m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS && m_pController->m_GameType != 5) || aVoteChecked[i])	// count in votes by spectators if tourndm
 						continue;
 
 					int ActVote = m_apPlayers[i]->m_Vote;
@@ -548,7 +552,7 @@ void CGameContext::OnClientEnter(int ClientID)
 void CGameContext::OnClientConnected(int ClientID)
 {
 	// Check which team the player should be on
-	const int StartTeam = g_Config.m_SvTournamentMode ? TEAM_SPECTATORS : m_pController->GetAutoTeam(ClientID);
+    const int StartTeam = m_pController->m_GameType == 5 ? TEAM_SPECTATORS : (g_Config.m_SvTournamentMode ? TEAM_SPECTATORS : m_pController->GetAutoTeam(ClientID));
 
 	m_apPlayers[ClientID] = new(ClientID) CPlayer(this, ClientID, StartTeam);
 	//players[client_id].init(client_id);
@@ -577,6 +581,7 @@ void CGameContext::OnClientConnected(int ClientID)
 void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 {
 	AbortVoteKickOnDisconnect(ClientID);
+    (void)m_pController->OnPlayerLeave(ClientID);
 	m_apPlayers[ClientID]->OnDisconnect(pReason);
 	delete m_apPlayers[ClientID];
 	m_apPlayers[ClientID] = 0;
@@ -652,7 +657,23 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 			pPlayer->m_LastChat = Server()->Tick();
 
-			SendChat(ClientID, Team, pMsg->m_pMessage);
+            if(m_pController->m_GameType == 5)
+            {
+                char aBuf[256];
+                if (str_comp_nocase(pMsg->m_pMessage, "/start") == 0)
+                {
+                    ((CGameControllerTournDM*)m_pController)->SignIn(ClientID);
+                }
+                else if (str_comp_nocase(pMsg->m_pMessage, "/gameinfo") == 0)
+                {
+                    str_format(aBuf, sizeof(aBuf), "arena: %d", pPlayer->m_Arena);
+                    SendChatTarget(ClientID, aBuf);
+                }
+                else
+                    SendChat(ClientID, Team, pMsg->m_pMessage);
+            }
+            else
+                SendChat(ClientID, Team, pMsg->m_pMessage);
 		}
 		else if(MsgID == NETMSGTYPE_CL_CALLVOTE)
 		{
@@ -661,11 +682,11 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 			int64 Now = Server()->Tick();
 			pPlayer->m_LastVoteTry = Now;
-			if(pPlayer->GetTeam() == TEAM_SPECTATORS)
+            if(pPlayer->GetTeam() == TEAM_SPECTATORS && m_pController->m_GameType != 5)
 			{
 				SendChatTarget(ClientID, "Spectators aren't allowed to start a vote.");
 				return;
-			}
+            }
 
 			if(m_VoteCloseTime)
 			{
@@ -844,6 +865,23 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			// Switch team on given client and kill/respawn him
 			if(m_pController->CanJoinTeam(pMsg->m_Team, ClientID))
 			{
+                if(m_pController->m_GameType == 5)
+                {
+                    if(pMsg->m_Team == TEAM_SPECTATORS && m_apPlayers[ClientID]->m_Arena != -1)
+                        if(!((CGameControllerTournDM*)m_pController)->Arena(m_apPlayers[ClientID]->m_Arena)->m_Warmup)
+                        {
+                            SendBroadcast("You can not join the spectators right now !", ClientID);
+                            return;
+                        }
+
+                    if(pPlayer->GetTeam() == TEAM_SPECTATORS)
+                        if(m_apPlayers[ClientID]->m_Arena == -1 && !g_Config.m_SvArenas)
+                        {
+                            SendBroadcast("To join the tourney write: /start", ClientID);
+                            return;
+                        }
+                }
+
 				if(m_pController->CanChangeTeam(pPlayer, pMsg->m_Team))
 				{
 					pPlayer->m_LastSetTeam = Server()->Tick();
@@ -1497,8 +1535,10 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 		m_pController = new CGameControllerMOD(this);
 	else if(str_comp(g_Config.m_SvGametype, "ctf") == 0)
 		m_pController = new CGameControllerCTF(this);
-	else if(str_comp(g_Config.m_SvGametype, "tdm") == 0)
-		m_pController = new CGameControllerTDM(this);
+    else if(str_comp(g_Config.m_SvGametype, "tdm") == 0)
+        m_pController = new CGameControllerTDM(this);
+    else if(str_comp(g_Config.m_SvGametype, "tourndm") == 0)
+        m_pController = new CGameControllerTournDM(this);
 	else
 		m_pController = new CGameControllerDM(this);
 
@@ -1591,6 +1631,34 @@ bool CGameContext::IsClientPlayer(int ClientID)
 {
 	return m_apPlayers[ClientID] && m_apPlayers[ClientID]->GetTeam() == TEAM_SPECTATORS ? false : true;
 }
+
+int CGameContext::CmaskArena(int Arena)
+{
+    int Mask = 0;
+
+    for(int SnappingClient = 0; SnappingClient < MAX_CLIENTS; SnappingClient++)
+    {
+        if(!m_apPlayers[SnappingClient])
+            continue;
+
+        if(m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS || m_apPlayers[SnappingClient]->m_Arena == -1 || Arena == -2)
+        {
+            if(m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS &&
+                    m_apPlayers[SnappingClient]->m_SpectatorID != -1 &&
+                    m_apPlayers[m_apPlayers[SnappingClient]->m_SpectatorID] &&
+                    m_apPlayers[m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != Arena)
+                continue;
+        }
+        else
+        {
+            if(m_apPlayers[SnappingClient]->m_Arena != Arena)
+                continue;
+        }
+        Mask |= CmaskOne(SnappingClient);
+    }
+    return Mask;
+}
+
 
 const char *CGameContext::GameType() { return m_pController && m_pController->m_pGameType ? m_pController->m_pGameType : ""; }
 const char *CGameContext::Version() { return GAME_VERSION; }

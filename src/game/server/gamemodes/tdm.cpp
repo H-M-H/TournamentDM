@@ -9,6 +9,7 @@
 CGameControllerTDM::CGameControllerTDM(class CGameContext *pGameServer) : IGameController(pGameServer)
 {
 	m_pGameType = "TDM";
+    m_GameType = GAMETYPE_TDM;
 	m_GameFlags = GAMEFLAG_TEAMS;
 }
 

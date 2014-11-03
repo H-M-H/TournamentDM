@@ -21,6 +21,10 @@ CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, int Team)
 	m_SpectatorID = SPEC_FREEVIEW;
 	m_LastActionTick = Server()->Tick();
 	m_TeamChangeTick = Server()->Tick();
+
+    m_Victories = 0;
+    m_Losses = 0;
+    m_Arena = -1;
 }
 
 CPlayer::~CPlayer()
@@ -282,11 +286,11 @@ void CPlayer::TryRespawn()
 {
 	vec2 SpawnPos;
 
-	if(!GameServer()->m_pController->CanSpawn(m_Team, &SpawnPos))
+    if(!GameServer()->m_pController->CanSpawn(m_Team, &SpawnPos, m_ClientID))
 		return;
 
 	m_Spawning = false;
 	m_pCharacter = new(m_ClientID) CCharacter(&GameServer()->m_World);
 	m_pCharacter->Spawn(this, SpawnPos);
-	GameServer()->CreatePlayerSpawn(SpawnPos);
+    GameServer()->CreatePlayerSpawn(SpawnPos, m_Arena);
 }

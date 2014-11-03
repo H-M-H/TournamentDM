@@ -194,7 +194,9 @@ public:
 
 	int m_TriggeredEvents;
 
-	void Init(CWorldCore *pWorld, CCollision *pCollision);
+    int m_Arena;
+
+    void Init(CWorldCore *pWorld, CCollision *pCollision, int Arena = -1);
 	void Reset();
 	void Tick(bool UseInput);
 	void Move();

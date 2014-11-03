@@ -154,6 +154,13 @@ public:
 			Contains the current posititon of the entity.
 	*/
 	vec2 m_Pos;
+
+
+    /*
+        Variable: arena
+            Contains the current arena of the entity.
+    */
+    int m_Arena;
 };
 
 #endif

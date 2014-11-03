@@ -39,7 +39,7 @@ IGameController::~IGameController()
 {
 }
 
-float IGameController::EvaluateSpawnPos(CSpawnEval *pEval, vec2 Pos)
+float IGameController::EvaluateSpawnPos(CSpawnEval *pEval, vec2 Pos, int CID)
 {
 	float Score = 0.0f;
 	CCharacter *pC = static_cast<CCharacter *>(GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER));
@@ -57,7 +57,7 @@ float IGameController::EvaluateSpawnPos(CSpawnEval *pEval, vec2 Pos)
 	return Score;
 }
 
-void IGameController::EvaluateSpawnType(CSpawnEval *pEval, int Type)
+void IGameController::EvaluateSpawnType(CSpawnEval *pEval, int Type, int CID)
 {
 	// get spawn point
 	for(int i = 0; i < m_aNumSpawnPoints[Type]; i++)
@@ -92,7 +92,7 @@ void IGameController::EvaluateSpawnType(CSpawnEval *pEval, int Type)
 	}
 }
 
-bool IGameController::CanSpawn(int Team, vec2 *pOutPos)
+bool IGameController::CanSpawn(int Team, vec2 *pOutPos, int CID)
 {
 	CSpawnEval Eval;
 
@@ -130,15 +130,15 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 	int Type = -1;
 	int SubType = 0;
 
-	if(Index == ENTITY_SPAWN)
+    if(Index == ENTITY_SPAWN)
 		m_aaSpawnPoints[0][m_aNumSpawnPoints[0]++] = Pos;
-	else if(Index == ENTITY_SPAWN_RED)
+    else if(Index == ENTITY_SPAWN_0)
 		m_aaSpawnPoints[1][m_aNumSpawnPoints[1]++] = Pos;
-	else if(Index == ENTITY_SPAWN_BLUE)
-		m_aaSpawnPoints[2][m_aNumSpawnPoints[2]++] = Pos;
-	else if(Index == ENTITY_ARMOR_1)
+    else if(Index == ENTITY_SPAWN_1)
+        m_aaSpawnPoints[2][m_aNumSpawnPoints[2]++] = Pos;
+    else if(Index == ENTITY_ARMOR)
 		Type = POWERUP_ARMOR;
-	else if(Index == ENTITY_HEALTH_1)
+    else if(Index == ENTITY_HEALTH)
 		Type = POWERUP_HEALTH;
 	else if(Index == ENTITY_WEAPON_SHOTGUN)
 	{

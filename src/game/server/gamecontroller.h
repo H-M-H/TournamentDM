@@ -12,8 +12,11 @@
 */
 class IGameController
 {
-	vec2 m_aaSpawnPoints[3][64];
-	int m_aNumSpawnPoints[3];
+    friend class CGameControllerTournDM;
+    friend class CGameControllerArena;
+
+    vec2 m_aaSpawnPoints[9][64];
+    int m_aNumSpawnPoints[9];
 
 	class CGameContext *m_pGameServer;
 	class IServer *m_pServer;
@@ -37,9 +40,9 @@ protected:
 		float m_Score;
 	};
 
-	float EvaluateSpawnPos(CSpawnEval *pEval, vec2 Pos);
-	void EvaluateSpawnType(CSpawnEval *pEval, int Type);
-	bool EvaluateSpawn(class CPlayer *pP, vec2 *pPos);
+    float EvaluateSpawnPos(CSpawnEval *pEval, vec2 Pos, int CID = -1);
+    void EvaluateSpawnType(CSpawnEval *pEval, int Type, int CID = -1);
+    bool EvaluateSpawn(class CPlayer *pP, vec2 *pPos);
 
 	void CycleMap();
 	void ResetGame();
@@ -62,6 +65,16 @@ protected:
 
 public:
 	const char *m_pGameType;
+
+    int m_GameType;
+    enum
+    {
+        GAMETYPE_DM=1,
+        GAMETYPE_TDM=2,
+        GAMETYPE_CTF=3,
+        GAMETYPE_MOD=4,
+        GAMETYPE_TOURNDM=5
+    };
 
 	bool IsTeamplay() const;
 	bool IsGameOver() const { return m_GameOverTick != -1; }
@@ -128,8 +141,10 @@ public:
 
 	virtual void OnPlayerInfoChange(class CPlayer *pP);
 
+    virtual void OnPlayerLeave(int CID) {}
+
 	//
-	virtual bool CanSpawn(int Team, vec2 *pPos);
+    virtual bool CanSpawn(int Team, vec2 *pPos, int CID = -1);
 
 	/*
 

@@ -1,15 +1,18 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
+#include <engine/shared/config.h>
+
 #include <game/generated/protocol.h>
 #include <game/server/gamecontext.h>
 #include "pickup.h"
 
-CPickup::CPickup(CGameWorld *pGameWorld, int Type, int SubType)
+CPickup::CPickup(CGameWorld *pGameWorld, int Type, int SubType, int Arena)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_PICKUP)
 {
 	m_Type = Type;
 	m_Subtype = SubType;
 	m_ProximityRadius = PickupPhysSize;
+    m_Arena = Arena;
 
 	Reset();
 
@@ -35,15 +38,18 @@ void CPickup::Tick()
 			m_SpawnTick = -1;
 
 			if(m_Type == POWERUP_WEAPON)
-				GameServer()->CreateSound(m_Pos, SOUND_WEAPON_SPAWN);
+                GameServer()->CreateSound(m_Pos, SOUND_WEAPON_SPAWN, GameServer()->CmaskArena(m_Arena));
 		}
 		else
 			return;
 	}
 	// Check if a player intersected us
 	CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, 20.0f, 0);
-	if(pChr && pChr->IsAlive())
+    if(pChr && pChr->IsAlive() && (pChr->m_Arena == m_Arena || m_Arena == -2))
 	{
+        if(m_Arena == -2)
+            m_Arena = pChr->m_Arena;
+
 		// player picked us up, is someone was hooking us, let them go
 		int RespawnTime = -1;
 		switch (m_Type)
@@ -51,7 +57,7 @@ void CPickup::Tick()
 			case POWERUP_HEALTH:
 				if(pChr->IncreaseHealth(1))
 				{
-					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_HEALTH);
+                    GameServer()->CreateSound(m_Pos, SOUND_PICKUP_HEALTH, GameServer()->CmaskArena(m_Arena));
 					RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 				}
 				break;
@@ -59,7 +65,7 @@ void CPickup::Tick()
 			case POWERUP_ARMOR:
 				if(pChr->IncreaseArmor(1))
 				{
-					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_ARMOR);
+                    GameServer()->CreateSound(m_Pos, SOUND_PICKUP_ARMOR, GameServer()->CmaskArena(m_Arena));
 					RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 				}
 				break;
@@ -72,11 +78,11 @@ void CPickup::Tick()
 						RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 
 						if(m_Subtype == WEAPON_GRENADE)
-							GameServer()->CreateSound(m_Pos, SOUND_PICKUP_GRENADE);
+                            GameServer()->CreateSound(m_Pos, SOUND_PICKUP_GRENADE, GameServer()->CmaskArena(m_Arena));
 						else if(m_Subtype == WEAPON_SHOTGUN)
-							GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN);
+                            GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN, GameServer()->CmaskArena(m_Arena));
 						else if(m_Subtype == WEAPON_RIFLE)
-							GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN);
+                            GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN, GameServer()->CmaskArena(m_Arena));
 
 						if(pChr->GetPlayer())
 							GameServer()->SendWeaponPickup(pChr->GetPlayer()->GetCID(), m_Subtype);
@@ -94,7 +100,7 @@ void CPickup::Tick()
 					CCharacter *pC = static_cast<CCharacter *>(GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER));
 					for(; pC; pC = (CCharacter *)pC->TypeNext())
 					{
-						if (pC != pChr)
+                        if (pC != pChr && pC->m_Arena == m_Arena)
 							pC->SetEmote(EMOTE_SURPRISE, Server()->Tick() + Server()->TickSpeed());
 					}
 
@@ -125,8 +131,52 @@ void CPickup::TickPaused()
 
 void CPickup::Snap(int SnappingClient)
 {
-	if(m_SpawnTick != -1 || NetworkClipped(SnappingClient))
-		return;
+    if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS || GameServer()->m_apPlayers[SnappingClient]->m_Arena == -1)
+    {
+        if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS &&
+                GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID != -1 &&
+                GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID] &&
+                GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena)
+        {
+            if(g_Config.m_SvArenas)
+            {
+            if(GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena == m_Arena)
+                if(m_SpawnTick != -1)
+                    return;
+            }
+            else
+            {
+                if(GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena)
+                    return;
+
+                if(m_SpawnTick != -1)
+                    return;
+            }
+        }
+        else if(m_SpawnTick != -1)
+                return;
+    }
+    else
+    {
+        if(g_Config.m_SvArenas)
+        {
+            if(NetworkClipped(SnappingClient))
+                return;
+
+            if(GameServer()->m_apPlayers[SnappingClient]->m_Arena == m_Arena)
+                if(m_SpawnTick != -1)
+                    return;
+        }
+        else
+        {
+            if(GameServer()->m_apPlayers[SnappingClient]->m_Arena != m_Arena)
+                return;
+
+            if(m_SpawnTick != -1 || NetworkClipped(SnappingClient))
+                return;
+        }
+    }
+
 
 	CNetObj_Pickup *pP = static_cast<CNetObj_Pickup *>(Server()->SnapNewItem(NETOBJTYPE_PICKUP, m_ID, sizeof(CNetObj_Pickup)));
 	if(!pP)

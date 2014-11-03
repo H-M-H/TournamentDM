@@ -10,7 +10,7 @@ const int PickupPhysSize = 14;
 class CPickup : public CEntity
 {
 public:
-	CPickup(CGameWorld *pGameWorld, int Type, int SubType = 0);
+    CPickup(CGameWorld *pGameWorld, int Type, int SubType = 0, int Arena = -1); // Arena == -2: no arena yet, will be determined when picked up
 
 	virtual void Reset();
 	virtual void Tick();

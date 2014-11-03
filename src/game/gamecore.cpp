@@ -55,10 +55,11 @@ float VelocityRamp(float Value, float Start, float Range, float Curvature)
 	return 1.0f/powf(Curvature, (Value-Start)/Range);
 }
 
-void CCharacterCore::Init(CWorldCore *pWorld, CCollision *pCollision)
+void CCharacterCore::Init(CWorldCore *pWorld, CCollision *pCollision, int Arena)
 {
 	m_pWorld = pWorld;
 	m_pCollision = pCollision;
+    m_Arena = Arena;
 }
 
 void CCharacterCore::Reset()
@@ -219,7 +220,7 @@ void CCharacterCore::Tick(bool UseInput)
 				vec2 ClosestPoint = closest_point_on_line(m_HookPos, NewPos, pCharCore->m_Pos);
 				if(distance(pCharCore->m_Pos, ClosestPoint) < PhysSize+2.0f)
 				{
-					if (m_HookedPlayer == -1 || distance(m_HookPos, pCharCore->m_Pos) < Distance)
+                    if (m_Arena == pCharCore->m_Arena && (m_HookedPlayer == -1 || distance(m_HookPos, pCharCore->m_Pos) < Distance))
 					{
 						m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_PLAYER;
 						m_HookState = HOOK_GRABBED;
@@ -317,7 +318,7 @@ void CCharacterCore::Tick(bool UseInput)
 			// handle player <-> player collision
 			float Distance = distance(m_Pos, pCharCore->m_Pos);
 			vec2 Dir = normalize(m_Pos - pCharCore->m_Pos);
-			if(m_pWorld->m_Tuning.m_PlayerCollision && Distance < PhysSize*1.25f && Distance > 0.0f)
+            if(m_Arena == pCharCore->m_Arena && m_pWorld->m_Tuning.m_PlayerCollision && Distance < PhysSize*1.25f && Distance > 0.0f)
 			{
 				float a = (PhysSize*1.45f - Distance);
 				float Velocity = 0.5f;
@@ -332,7 +333,7 @@ void CCharacterCore::Tick(bool UseInput)
 			}
 
 			// handle hook influence
-			if(m_HookedPlayer == i && m_pWorld->m_Tuning.m_PlayerHooking)
+            if(m_Arena == pCharCore->m_Arena && m_HookedPlayer == i && m_pWorld->m_Tuning.m_PlayerHooking)
 			{
 				if(Distance > PhysSize*1.50f) // TODO: fix tweakable variable
 				{
@@ -367,7 +368,7 @@ void CCharacterCore::Move()
 
 	m_Vel.x = m_Vel.x*(1.0f/RampValue);
 
-	if(m_pWorld && m_pWorld->m_Tuning.m_PlayerCollision)
+    if(m_pWorld && m_pWorld->m_Tuning.m_PlayerCollision)
 	{
 		// check player collision
 		float Distance = distance(m_Pos, NewPos);
@@ -380,7 +381,7 @@ void CCharacterCore::Move()
 			for(int p = 0; p < MAX_CLIENTS; p++)
 			{
 				CCharacterCore *pCharCore = m_pWorld->m_apCharacters[p];
-				if(!pCharCore || pCharCore == this)
+                if(!pCharCore || pCharCore == this || m_Arena != pCharCore->m_Arena)
 					continue;
 				float D = distance(Pos, pCharCore->m_Pos);
 				if(D < 28.0f && D > 0.0f)

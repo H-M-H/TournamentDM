@@ -20,6 +20,8 @@ CProjectile::CProjectile(CGameWorld *pGameWorld, int Type, int Owner, vec2 Pos, 
 	m_StartTick = Server()->Tick();
 	m_Explosive = Explosive;
 
+    m_Arena = GameServer()->m_apPlayers[m_Owner]->m_Arena;
+
 	GameWorld()->InsertEntity(this);
 }
 
@@ -65,15 +67,19 @@ void CProjectile::Tick()
 	CCharacter *OwnerChar = GameServer()->GetPlayerChar(m_Owner);
 	CCharacter *TargetChr = GameServer()->m_World.IntersectCharacter(PrevPos, CurPos, 6.0f, CurPos, OwnerChar);
 
+    // only hit tees in same arena
+    if(TargetChr && m_Arena != TargetChr->m_Arena)
+        TargetChr = 0;
+
 	m_LifeSpan--;
 
 	if(TargetChr || Collide || m_LifeSpan < 0 || GameLayerClipped(CurPos))
 	{
 		if(m_LifeSpan >= 0 || m_Weapon == WEAPON_GRENADE)
-			GameServer()->CreateSound(CurPos, m_SoundImpact);
+            GameServer()->CreateSound(CurPos, m_SoundImpact, GameServer()->CmaskArena(m_Arena));
 
 		if(m_Explosive)
-			GameServer()->CreateExplosion(CurPos, m_Owner, m_Weapon, false);
+            GameServer()->CreateExplosion(CurPos, m_Owner, m_Weapon, false, m_Arena);
 
 		else if(TargetChr)
 			TargetChr->TakeDamage(m_Direction * max(0.001f, m_Force), m_Damage, m_Owner, m_Weapon);
@@ -101,8 +107,21 @@ void CProjectile::Snap(int SnappingClient)
 {
 	float Ct = (Server()->Tick()-m_StartTick)/(float)Server()->TickSpeed();
 
-	if(NetworkClipped(SnappingClient, GetPos(Ct)))
-		return;
+    if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS || GameServer()->m_apPlayers[SnappingClient]->m_Arena == -1)
+    {
+        if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS &&
+                GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID != -1 &&
+                GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID] &&
+                GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena)
+            return;
+    }
+    else
+    {
+        if(GameServer()->m_apPlayers[SnappingClient]->m_Arena != m_Arena)
+            return;
+        if(NetworkClipped(SnappingClient, GetPos(Ct)))
+            return;
+    }
 
 	CNetObj_Projectile *pProj = static_cast<CNetObj_Projectile *>(Server()->SnapNewItem(NETOBJTYPE_PROJECTILE, m_ID, sizeof(CNetObj_Projectile)));
 	if(pProj)

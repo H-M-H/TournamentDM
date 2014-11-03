@@ -28,6 +28,7 @@ public:
 
 private:
 	void Reset();
+    void Reset(int ArenaID);
 	void RemoveEntities();
 
 	CEntity *m_pNextTraverseEntity;
@@ -42,6 +43,10 @@ public:
 
 	bool m_ResetRequested;
 	bool m_Paused;
+
+    bool m_ArenaResetRequested[8];
+    bool m_ArenaPaused[8];
+
 	CWorldCore m_Core;
 
 	CGameWorld();

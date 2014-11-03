@@ -118,11 +118,11 @@ public:
 	CVoteOptionServer *m_pVoteOptionLast;
 
 	// helper functions
-	void CreateDamageInd(vec2 Pos, float AngleMod, int Amount);
-	void CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamage);
-	void CreateHammerHit(vec2 Pos);
-	void CreatePlayerSpawn(vec2 Pos);
-	void CreateDeath(vec2 Pos, int Who);
+    void CreateDamageInd(vec2 Pos, float AngleMod, int Amount, int ArenaID = -1);
+    void CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamage, int ArenaID = -1);
+    void CreateHammerHit(vec2 Pos, int ArenaID = -1);
+    void CreatePlayerSpawn(vec2 Pos, int ArenaID = -1);
+    void CreateDeath(vec2 Pos, int Who, int ArenaID = -1);
 	void CreateSound(vec2 Pos, int Sound, int Mask=-1);
 	void CreateSoundGlobal(int Sound, int Target=-1);
 
@@ -174,10 +174,13 @@ public:
 	virtual const char *GameType();
 	virtual const char *Version();
 	virtual const char *NetVersion();
+
+    int CmaskArena(int Arena);
 };
 
 inline int CmaskAll() { return -1; }
 inline int CmaskOne(int ClientID) { return 1<<ClientID; }
 inline int CmaskAllExceptOne(int ClientID) { return 0x7fffffff^CmaskOne(ClientID); }
 inline bool CmaskIsSet(int Mask, int ClientID) { return (Mask&CmaskOne(ClientID)) != 0; }
+
 #endif

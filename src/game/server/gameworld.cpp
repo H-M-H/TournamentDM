@@ -4,6 +4,7 @@
 #include "gameworld.h"
 #include "entity.h"
 #include "gamecontext.h"
+#include "./gamemodes/tourndm.h"
 
 //////////////////////////////////////////////////
 // game world
@@ -131,6 +132,26 @@ void CGameWorld::Reset()
 	m_ResetRequested = false;
 }
 
+void CGameWorld::Reset(int ArenaID)
+{
+    // reset all entities
+    for(int i = 0; i < NUM_ENTTYPES; i++)
+        for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
+        {
+            m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
+            if(pEnt->m_Arena == ArenaID)
+                pEnt->Reset();
+            pEnt = m_pNextTraverseEntity;
+        }
+    RemoveEntities();
+
+    ((CGameControllerTournDM*)GameServer()->m_pController)->Arena(ArenaID)->PostReset();
+    RemoveEntities();
+
+    m_ArenaResetRequested[ArenaID] = false;
+    ((CGameControllerTournDM*)GameServer()->m_pController)->Arena(ArenaID)->m_ResetRequested = false;
+}
+
 void CGameWorld::RemoveEntities()
 {
 	// destroy objects marked for destruction
@@ -152,6 +173,10 @@ void CGameWorld::Tick()
 	if(m_ResetRequested)
 		Reset();
 
+    for(int i = 0; i < 8; i++)
+        if(m_ArenaResetRequested[i])
+            Reset(i);
+
 	if(!m_Paused)
 	{
 		if(GameServer()->m_pController->IsForceBalanced())
@@ -161,7 +186,8 @@ void CGameWorld::Tick()
 			for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
 			{
 				m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
-				pEnt->Tick();
+                if(!m_ArenaPaused[pEnt->m_Arena])
+                    pEnt->Tick();
 				pEnt = m_pNextTraverseEntity;
 			}
 
@@ -169,9 +195,19 @@ void CGameWorld::Tick()
 			for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
 			{
 				m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
-				pEnt->TickDefered();
+                if(!m_ArenaPaused[pEnt->m_Arena])
+                    pEnt->TickDefered();
 				pEnt = m_pNextTraverseEntity;
 			}
+
+        for(int i = 0; i < NUM_ENTTYPES; i++)
+            for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
+            {
+                m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
+                if(m_ArenaPaused[pEnt->m_Arena])
+                    pEnt->TickPaused();
+                pEnt = m_pNextTraverseEntity;
+            }
 	}
 	else
 	{
