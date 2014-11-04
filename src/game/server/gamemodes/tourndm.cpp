@@ -133,6 +133,8 @@ void CGameControllerTournDM::Tick()
         GameServer()->Console()->ExecuteLine("reload");
     }
 
+
+
     for(int i = 0; i < NUM_ARENAS; i++)
     {
         m_apArenas[i]->Tick();
@@ -140,10 +142,10 @@ void CGameControllerTournDM::Tick()
         GameServer()->m_World.m_ArenaPaused[i] = Arena(i)->m_Paused;
     }
 
-    // do warmup
-    if(m_Warmup)
+    if(!GameServer()->m_World.m_Paused)
     {
-        if(!GameServer()->m_World.m_Paused)
+        // do warmup
+        if(m_Warmup)
         {
             if(m_NumParticipants >= 2)
                 m_Warmup--;
@@ -152,31 +154,31 @@ void CGameControllerTournDM::Tick()
             if(!m_Warmup)
                 StartTourney();
         }
-    }
-    else
-    {
-        int WaitingID = -1;
-        for(int Victories = 1; Victories <= 4; Victories++)
+        else
         {
-            for(int i = 0; i < NUM_ARENAS; i++)
-                if(Arena(i)->m_NumPlayers == 1 && !Arena(i)->m_RoundRunning)
-                {
-                    // just to be sure
-                    if(((bool)Arena(i)->m_apOpponents[0]) == ((bool)Arena(i)->m_apOpponents[1]))
-                        continue;
-
-                    int PlayerID = Arena(i)->m_apOpponents[0] ? Arena(i)->m_apOpponents[0]->GetCID() : Arena(i)->m_apOpponents[1]->GetCID();
-                    if(GameServer()->m_apPlayers[PlayerID]->m_Victories == Victories)
+            for(int Victories = 1; Victories <= 4; Victories++)
+            {
+                int WaitingID = -1;
+                for(int i = 0; i < NUM_ARENAS; i++)
+                    if(Arena(i)->m_NumPlayers == 1 && !Arena(i)->m_RoundRunning)
                     {
-                        if(WaitingID == -1)
-                            WaitingID = PlayerID;
-                        else
+                        // just to be sure
+                        if(((bool)Arena(i)->m_apOpponents[0]) == ((bool)Arena(i)->m_apOpponents[1]))
+                            continue;
+
+                        int PlayerID = Arena(i)->m_apOpponents[0] ? Arena(i)->m_apOpponents[0]->GetCID() : Arena(i)->m_apOpponents[1]->GetCID();
+                        if(GameServer()->m_apPlayers[PlayerID]->m_Victories == Victories)
                         {
-                            ChangeArena(PlayerID, GameServer()->m_apPlayers[WaitingID]->m_Arena);
-                            WaitingID = -1;
+                            if(WaitingID == -1)
+                                WaitingID = PlayerID;
+                            else
+                            {
+                                ChangeArena(PlayerID, GameServer()->m_apPlayers[WaitingID]->m_Arena);
+                                WaitingID = -1;
+                            }
                         }
                     }
-                }
+            }
         }
     }
 
@@ -424,29 +426,14 @@ void CGameControllerTournDM::StartTourney()
 
 void CGameControllerTournDM::StartRound()
 {
-    ResetGame();
-
     for(int i = 0; i < MAX_CLIENTS; i++)
         if(GameServer()->m_apPlayers[i])
             ChangeArena(i, -1);
 
-    m_RoundStartTick = Server()->Tick();
-    m_SuddenDeath = 0;
-    m_GameOverTick = -1;
-
-    GameServer()->m_World.m_Paused = false;
-    m_aTeamscore[TEAM_RED] = 0;
-    m_aTeamscore[TEAM_BLUE] = 0;
-    m_ForceBalanced = false;
-    m_Warmup = Server()->TickSpeed()*g_Config.m_SvStartWarmUp;
-
     for(int i = 0; i < NUM_ARENAS; i++)
         Arena(i)->m_TourneyStarted = false;
 
-    Server()->DemoRecorder_HandleAutoStart();
-    char aBuf[256];
-    str_format(aBuf, sizeof(aBuf), "start round type='%s' teamplay='%d'", m_pGameType, m_GameFlags&GAMEFLAG_TEAMS);
-    GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
+    IGameController::StartRound();
 }
 
 void CGameControllerTournDM::EndRound()
@@ -770,7 +757,7 @@ void CGameControllerArena::Tick()
     if(m_GameOverTick != -1)
     {
         // game over.. wait for restart
-        if(Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*10)
+        if(Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*5)
         {
             for(int i = 0; i < MAX_OPPONENTS; i++)
                 if(m_apOpponents[i] && m_apOpponents[i]->m_Losses)

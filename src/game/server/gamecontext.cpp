@@ -525,13 +525,13 @@ void CGameContext::OnTick()
 // Server hooks
 void CGameContext::OnClientDirectInput(int ClientID, void *pInput)
 {
-	if(!m_World.m_Paused)
+    if(!m_World.m_Paused && !m_World.m_ArenaPaused[m_apPlayers[ClientID]->m_Arena])
 		m_apPlayers[ClientID]->OnDirectInput((CNetObj_PlayerInput *)pInput);
 }
 
 void CGameContext::OnClientPredictedInput(int ClientID, void *pInput)
 {
-	if(!m_World.m_Paused)
+    if(!m_World.m_Paused && !m_World.m_ArenaPaused[m_apPlayers[ClientID]->m_Arena])
 		m_apPlayers[ClientID]->OnPredictedInput((CNetObj_PlayerInput *)pInput);
 }
 
@@ -838,7 +838,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				m_VoteUpdate = true;
 			}
 		}
-		else if (MsgID == NETMSGTYPE_CL_SETTEAM && !m_World.m_Paused)
+        else if (MsgID == NETMSGTYPE_CL_SETTEAM && !m_World.m_Paused && !m_World.m_ArenaPaused[m_apPlayers[ClientID]->m_Arena])
 		{
 			CNetMsg_Cl_SetTeam *pMsg = (CNetMsg_Cl_SetTeam *)pRawMsg;
 
@@ -901,7 +901,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				SendBroadcast(aBuf, ClientID);
 			}
 		}
-		else if (MsgID == NETMSGTYPE_CL_SETSPECTATORMODE && !m_World.m_Paused)
+        else if (MsgID == NETMSGTYPE_CL_SETSPECTATORMODE && !m_World.m_Paused && !m_World.m_ArenaPaused[m_apPlayers[ClientID]->m_Arena])
 		{
 			CNetMsg_Cl_SetSpectatorMode *pMsg = (CNetMsg_Cl_SetSpectatorMode *)pRawMsg;
 
@@ -941,7 +941,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			pPlayer->m_TeeInfos.m_ColorFeet = pMsg->m_ColorFeet;
 			m_pController->OnPlayerInfoChange(pPlayer);
 		}
-		else if (MsgID == NETMSGTYPE_CL_EMOTICON && !m_World.m_Paused)
+        else if (MsgID == NETMSGTYPE_CL_EMOTICON && !m_World.m_Paused && !m_World.m_ArenaPaused[m_apPlayers[ClientID]->m_Arena])
 		{
 			CNetMsg_Cl_Emoticon *pMsg = (CNetMsg_Cl_Emoticon *)pRawMsg;
 
@@ -952,7 +952,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 			SendEmoticon(ClientID, pMsg->m_Emoticon);
 		}
-		else if (MsgID == NETMSGTYPE_CL_KILL && !m_World.m_Paused)
+        else if (MsgID == NETMSGTYPE_CL_KILL && !m_World.m_Paused && !m_World.m_ArenaPaused[m_apPlayers[ClientID]->m_Arena])
 		{
 			if(pPlayer->m_LastKill && pPlayer->m_LastKill+Server()->TickSpeed()*3 > Server()->Tick())
 				return;
