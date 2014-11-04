@@ -20,6 +20,7 @@ CGameControllerTournDM::CGameControllerTournDM(class CGameContext *pGameServer)
 
     m_NumParticipants = 0;
     m_NumActiveArenas = 0;
+    m_TourneyStarted = false;
 
     // every arena gets an own controller
     // create always 8 in case someone changes settings...
@@ -145,7 +146,7 @@ void CGameControllerTournDM::Tick()
     if(!GameServer()->m_World.m_Paused)
     {
         // do warmup
-        if(m_Warmup)
+        if(m_Warmup || (m_NumParticipants < 2 && !m_TourneyStarted))
         {
             if(m_NumParticipants >= 2)
                 m_Warmup--;
@@ -418,10 +419,12 @@ void CGameControllerTournDM::StartTourney()
 
     for(int i = 0; i < NUM_ARENAS; i++)
     {
+        m_TourneyStarted = true;
         Arena(i)->m_TourneyStarted = true;
         Arena(i)->m_RoundRunning = true;
         Arena(i)->m_Warmup = Server()->TickSpeed()*g_Config.m_SvRoundWarmUp;
     }
+    GameServer()->SendBroadcast("Tournament started, Good Luck !", -1);
 }
 
 void CGameControllerTournDM::StartRound()
@@ -430,6 +433,7 @@ void CGameControllerTournDM::StartRound()
         if(GameServer()->m_apPlayers[i])
             ChangeArena(i, -1);
 
+    m_TourneyStarted = false;
     for(int i = 0; i < NUM_ARENAS; i++)
         Arena(i)->m_TourneyStarted = false;
 

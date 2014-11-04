@@ -75,6 +75,7 @@ MACRO_CONFIG_INT(SvArenas, sv_arenas, 1, 0, 1, CFGFLAG_SERVER, "Wether to use ar
 MACRO_CONFIG_INT(SvStartWarmUp, sv_start_warmup, 90, 5, 1000, CFGFLAG_SERVER, "Time to wait until tourney starts")
 MACRO_CONFIG_INT(SvRoundWarmUp, sv_round_warmup, 10, 0, 500, CFGFLAG_SERVER, "Time between rounds")
 MACRO_CONFIG_INT(SvColorize, sv_colorize, 1, 0, 1, CFGFLAG_SERVER, "Colorize tees in arenas")
+MACRO_CONFIG_INT(SvClipPickups, sv_clippickups, 0, 0, 1, CFGFLAG_SERVER, "Clips Pickups for spectators, should be used if there are many")
 
 MACRO_CONFIG_INT(SvSpectatorSlots, sv_spectator_slots, 0, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Number of slots to reserve for spectators")
 MACRO_CONFIG_INT(SvTeambalanceTime, sv_teambalance_time, 1, 0, 1000, CFGFLAG_SERVER, "How many minutes to wait before autobalancing teams")

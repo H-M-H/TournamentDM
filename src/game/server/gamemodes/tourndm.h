@@ -39,6 +39,8 @@ public:
         NUM_ARENAS=8
     };
 
+    bool m_TourneyStarted;
+
 private:
 
     void UpdateArenaStates();

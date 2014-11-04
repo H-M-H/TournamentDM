@@ -131,6 +131,9 @@ void CPickup::TickPaused()
 
 void CPickup::Snap(int SnappingClient)
 {
+    if(g_Config.m_SvClipPickups && NetworkClipped(SnappingClient))
+        return;
+
     if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS || GameServer()->m_apPlayers[SnappingClient]->m_Arena == -1)
     {
         if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS &&
