@@ -519,7 +519,11 @@ void CGameControllerTournDM::Snap(int SnappingClient)
                 pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_SUDDENDEATH;
             if(Arena(ArenaID)->m_Paused || GameServer()->m_World.m_Paused)
                 pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_PAUSED;
-            pGameInfoObj->m_RoundStartTick = Arena(ArenaID)->m_RoundStartTick;
+            if(m_GameOverTick == -1)
+                pGameInfoObj->m_RoundStartTick = Arena(ArenaID)->m_RoundStartTick;
+            else
+                pGameInfoObj->m_RoundStartTick = m_RoundStartTick;
+
             pGameInfoObj->m_WarmupTimer = Arena(ArenaID)->m_Warmup;
             pGameInfoObj->m_TimeLimit = g_Config.m_SvTimelimit;
         }
@@ -545,7 +549,10 @@ void CGameControllerTournDM::Snap(int SnappingClient)
             pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_SUDDENDEATH;
         if(Arena(ArenaID)->m_Paused || GameServer()->m_World.m_Paused)
             pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_PAUSED;
-        pGameInfoObj->m_RoundStartTick = Arena(ArenaID)->m_RoundStartTick;
+        if(m_GameOverTick == -1)
+            pGameInfoObj->m_RoundStartTick = Arena(ArenaID)->m_RoundStartTick;
+        else
+            pGameInfoObj->m_RoundStartTick = m_RoundStartTick;
         pGameInfoObj->m_WarmupTimer = Arena(ArenaID)->m_Warmup;
         pGameInfoObj->m_TimeLimit = g_Config.m_SvTimelimit;
     }
@@ -624,7 +631,10 @@ void CGameControllerArena::OnCharacterDeath(class CCharacter *pVictim, class CPl
 }
 
 void CGameControllerArena::DoWincheck()
-{
+{    
+    if(!m_TourneyStarted)
+        return;
+
     if(m_NumPlayers == 1)
         for(int i = 0; i < MAX_OPPONENTS; i++)
             if(m_apOpponents[i])
