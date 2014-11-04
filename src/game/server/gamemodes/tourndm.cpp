@@ -67,6 +67,12 @@ void CGameControllerTournDM::SignIn(int CID)
         return;
     }
 
+    if(m_NumParticipants >= m_NumActiveArenas*2)
+    {
+        GameServer()->SendChatTarget(CID, "You can't join, all arenas are full");
+        return;
+    }
+
     for(int i = 0; i < NUM_ARENAS; i++)
         if(ChangeArena(CID, i))
         {
