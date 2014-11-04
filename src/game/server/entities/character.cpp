@@ -3,6 +3,7 @@
 #include <new>
 #include <engine/shared/config.h>
 #include <game/server/gamecontext.h>
+#include <game/server/gamemodes/tourndm.h>
 #include <game/mapitems.h>
 
 #include "character.h"
@@ -60,6 +61,8 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_ActiveWeapon = WEAPON_GUN;
 	m_LastWeapon = WEAPON_HAMMER;
 	m_QueuedWeapon = -1;
+
+    m_TileIndex = 0;
 
 	m_pPlayer = pPlayer;
 	m_Pos = Pos;
@@ -572,6 +575,13 @@ void CCharacter::Tick()
 	{
 		Die(m_pPlayer->GetCID(), WEAPON_WORLD);
 	}
+
+    if(m_TileIndex != GameServer()->Collision()->GetCollisionAt(m_Pos.x, m_Pos.y) && GameServer()->m_pController->m_GameType == 5)
+    {
+        m_TileIndex = GameServer()->Collision()->GetCollisionAt(m_Pos.x, m_Pos.y);
+        if(m_TileIndex == TILE_START)
+            ((CGameControllerTournDM*)GameServer()->m_pController)->SignIn(m_pPlayer->GetCID());
+    }
 
 	// handle Weapons
 	HandleWeapons();

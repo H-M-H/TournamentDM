@@ -36,6 +36,8 @@ CGameControllerTournDM::CGameControllerTournDM(class CGameContext *pGameServer)
 
 void CGameControllerTournDM::UpdateArenaStates()
 {
+    m_NumActiveArenas = 0;
+
     for(int i = 0; i < NUM_ARENAS; i++)
     {
         if(g_Config.m_SvArenas)
@@ -55,8 +57,14 @@ void CGameControllerTournDM::UpdateArenaStates()
 void CGameControllerTournDM::SignIn(int CID)
 {
     // joined already
-    if(GameServer()->m_apPlayers[CID]->m_Arena != -1 || !m_Warmup)
+    if(GameServer()->m_apPlayers[CID]->m_Arena != -1)
         return;
+
+    if(!m_Warmup)
+    {
+        GameServer()->SendChatTarget(CID, "You need to wait until the tournament is over");
+        return;
+    }
 
     for(int i = 0; i < NUM_ARENAS; i++)
         if(ChangeArena(CID, i))
@@ -77,25 +85,31 @@ void CGameControllerTournDM::SignIn(int CID)
 
 bool CGameControllerTournDM::ChangeArena(int CID, int ID)
 {
-    if((!m_aActiveArenas[ID] || m_apArenas[ID]->m_NumPlayers >= CGameControllerArena::MAX_OPPONENTS) && ID != -1)
+    if(!GameServer()->m_apPlayers[CID])
+        return false;
+
+    if(ID != -1 && (!m_aActiveArenas[ID] || m_apArenas[ID]->m_NumPlayers >= CGameControllerArena::MAX_OPPONENTS))
         return false;
 
     if(ID == GameServer()->m_apPlayers[CID]->m_Arena)
         return false;
 
+    // player left tourney
     if(ID == -1)
         OnPlayerLeave(CID);
-    else
-        Arena(ID)->OnPlayerEnter(CID);
 
     if(GameServer()->m_apPlayers[CID]->m_Arena != -1)
         Arena(GameServer()->m_apPlayers[CID]->m_Arena)->OnPlayerLeave(CID);
 
+    GameServer()->m_apPlayers[CID]->m_Arena = ID;
+    GameServer()->m_apPlayers[CID]->SetTeam(0, false);
+    GameServer()->m_apPlayers[CID]->KillCharacter();
+
+    if(ID != -1)
+        Arena(ID)->OnPlayerEnter(CID);
+
     OnPlayerInfoChange(GameServer()->m_apPlayers[CID]);
 
-    GameServer()->m_apPlayers[CID]->m_Arena = ID;
-    GameServer()->m_apPlayers[CID]->KillCharacter();
-    GameServer()->m_apPlayers[CID]->SetTeam(0, false);
     return true;
 }
 
@@ -117,14 +131,17 @@ void CGameControllerTournDM::Tick()
     }
 
     // do warmup
-    if(m_Warmup && !GameServer()->m_World.m_Paused)
+    if(m_Warmup)
     {
-        if(m_NumParticipants >= 2)
-            m_Warmup--;
-        else
-            m_Warmup = Server()->TickSpeed()*g_Config.m_SvStartWarmUp;
-        if(!m_Warmup)
-            StartRound();
+        if(!GameServer()->m_World.m_Paused)
+        {
+            if(m_NumParticipants >= 2)
+                m_Warmup--;
+            else
+                m_Warmup = Server()->TickSpeed()*g_Config.m_SvStartWarmUp;
+            if(!m_Warmup)
+                StartTourney();
+        }
     }
     else
     {
@@ -132,7 +149,7 @@ void CGameControllerTournDM::Tick()
         for(int Victories = 1; Victories <= 4; Victories++)
         {
             for(int i = 0; i < NUM_ARENAS; i++)
-                if(Arena(i)->m_NumPlayers == 1)
+                if(Arena(i)->m_NumPlayers == 1 && !Arena(i)->m_RoundRunning && !Arena(i)->m_ResetRequested && !Arena(i)->m_Paused)
                 {
                     int PlayerID = Arena(i)->m_apOpponents[0] ? Arena(i)->m_apOpponents[0]->GetCID() : Arena(i)->m_apOpponents[1]->GetCID();
                     if(GameServer()->m_apPlayers[PlayerID]->m_Victories == Victories)
@@ -141,7 +158,7 @@ void CGameControllerTournDM::Tick()
                             WaitingID = PlayerID;
                         else
                         {
-                            ChangeArena((Arena(i)->m_apOpponents[0] ? Arena(i)->m_apOpponents[0]->GetCID() : Arena(i)->m_apOpponents[1]->GetCID()), GameServer()->m_apPlayers[WaitingID]->m_Arena);
+                            ChangeArena(PlayerID, GameServer()->m_apPlayers[WaitingID]->m_Arena);
                             WaitingID = -1;
                         }
                     }
@@ -164,6 +181,11 @@ void CGameControllerTournDM::Tick()
         ++m_RoundStartTick;
 
     DoWincheck();
+
+    if(Arena(0)->m_NumPlayers == 2 && Arena(0)->m_apOpponents[0] == 0)
+    {
+        GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "Arena", "Something went very wrong :/");
+    }
 }
 
 bool CGameControllerTournDM::CanSpawn(int Team, vec2 *pOutPos, int CID)
@@ -317,10 +339,7 @@ bool CGameControllerTournDM::OnEntity(int Index, vec2 Pos)
 void CGameControllerTournDM::OnPlayerLeave(int CID)
 {
     if(GameServer()->m_apPlayers[CID]->m_Arena != -1)
-    {
         m_NumParticipants--;
-        Arena(GameServer()->m_apPlayers[CID]->m_Arena)->OnPlayerLeave(CID);
-    }
 }
 
 int CGameControllerTournDM::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
@@ -368,6 +387,51 @@ void CGameControllerTournDM::DoWincheck()
     }
 }
 
+void CGameControllerTournDM::StartTourney()
+{
+    ResetGame();
+
+    for(int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if(GameServer()->m_apPlayers[i])
+        {
+            // reset tourney stuff
+            GameServer()->m_apPlayers[i]->m_Victories = 0;
+            GameServer()->m_apPlayers[i]->m_Losses = 0;
+        }
+    }
+
+    for(int i = 0; i < NUM_ARENAS; i++)
+    {
+        Arena(i)->m_TourneyStarted = true;
+        Arena(i)->m_RoundRunning = true;
+        Arena(i)->m_Warmup = Server()->TickSpeed()*g_Config.m_SvRoundWarmUp;
+    }
+}
+
+void CGameControllerTournDM::StartRound()
+{
+    ResetGame();
+
+    m_RoundStartTick = Server()->Tick();
+    m_SuddenDeath = 0;
+    m_GameOverTick = -1;
+
+    GameServer()->m_World.m_Paused = false;
+    m_aTeamscore[TEAM_RED] = 0;
+    m_aTeamscore[TEAM_BLUE] = 0;
+    m_ForceBalanced = false;
+    m_Warmup = Server()->TickSpeed()*g_Config.m_SvStartWarmUp;
+
+    for(int i = 0; i < NUM_ARENAS; i++)
+        Arena(i)->m_TourneyStarted = false;
+
+    Server()->DemoRecorder_HandleAutoStart();
+    char aBuf[256];
+    str_format(aBuf, sizeof(aBuf), "start round type='%s' teamplay='%d'", m_pGameType, m_GameFlags&GAMEFLAG_TEAMS);
+    GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
+}
+
 void CGameControllerTournDM::EndRound()
 {
     if(m_Warmup) // game can't end when we are running warmup
@@ -376,14 +440,10 @@ void CGameControllerTournDM::EndRound()
     GameServer()->m_World.m_Paused = true;
     m_GameOverTick = Server()->Tick();
     m_SuddenDeath = 0;
-    m_Warmup = Server()->TickSpeed()*g_Config.m_SvStartWarmUp;
 
     for(int i = 0; i < MAX_CLIENTS; i++)
         if(GameServer()->m_apPlayers[i])
             ChangeArena(i, -1);
-
-    for(int i = 0; i < NUM_ARENAS; i++)
-        Arena(i)->EndRound();
 }
 
 void CGameControllerTournDM::PostReset()
@@ -393,16 +453,10 @@ void CGameControllerTournDM::PostReset()
         if(GameServer()->m_apPlayers[i])
         {
             GameServer()->m_apPlayers[i]->Respawn();
-            GameServer()->m_apPlayers[i]->m_Score = -100;
-
-            // reset tourney stuff
-            GameServer()->m_apPlayers[i]->m_Victories = 0;
-            GameServer()->m_apPlayers[i]->m_Losses = 0;
-
             GameServer()->m_apPlayers[i]->m_ScoreStartTick = Server()->Tick();
             GameServer()->m_apPlayers[i]->m_RespawnTick = Server()->Tick()+Server()->TickSpeed()/2;
         }
-    }
+    } 
 }
 
 CGameControllerTournDM::~CGameControllerTournDM()
@@ -450,10 +504,11 @@ void CGameControllerTournDM::Snap(int SnappingClient)
                 pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_GAMEOVER;
             if(Arena(ArenaID)->m_SuddenDeath)
                 pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_SUDDENDEATH;
-            if(Arena(ArenaID)->m_Paused)
+            if(Arena(ArenaID)->m_Paused || GameServer()->m_World.m_Paused)
                 pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_PAUSED;
             pGameInfoObj->m_RoundStartTick = Arena(ArenaID)->m_RoundStartTick;
             pGameInfoObj->m_WarmupTimer = Arena(ArenaID)->m_Warmup;
+            pGameInfoObj->m_TimeLimit = g_Config.m_SvTimelimit;
         }
         else
         {
@@ -465,6 +520,7 @@ void CGameControllerTournDM::Snap(int SnappingClient)
                 pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_PAUSED;
             pGameInfoObj->m_RoundStartTick = m_RoundStartTick;
             pGameInfoObj->m_WarmupTimer = m_Warmup;
+            pGameInfoObj->m_TimeLimit = 0;
         }
     }
     else
@@ -474,14 +530,14 @@ void CGameControllerTournDM::Snap(int SnappingClient)
             pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_GAMEOVER;
         if(Arena(ArenaID)->m_SuddenDeath)
             pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_SUDDENDEATH;
-        if(Arena(ArenaID)->m_Paused)
+        if(Arena(ArenaID)->m_Paused || GameServer()->m_World.m_Paused)
             pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_PAUSED;
         pGameInfoObj->m_RoundStartTick = Arena(ArenaID)->m_RoundStartTick;
         pGameInfoObj->m_WarmupTimer = Arena(ArenaID)->m_Warmup;
+        pGameInfoObj->m_TimeLimit = g_Config.m_SvTimelimit;
     }
 
     pGameInfoObj->m_ScoreLimit = g_Config.m_SvScorelimit;
-    pGameInfoObj->m_TimeLimit = g_Config.m_SvTimelimit;
 
     pGameInfoObj->m_RoundNum = (str_length(g_Config.m_SvMaprotation) && g_Config.m_SvRoundsPerMap) ? g_Config.m_SvRoundsPerMap : 0;
     pGameInfoObj->m_RoundCurrent = m_RoundCount+1;
@@ -503,6 +559,8 @@ CGameControllerArena::CGameControllerArena(CGameControllerTournDM *pController)
     m_NumPlayers = 0;
     m_ResetRequested = false;
     m_Paused = false;
+    m_RoundRunning = false;
+    m_Winner = 0;
 
     m_GameOverTick = -1;
     m_SuddenDeath = 0;
@@ -515,7 +573,14 @@ CGameControllerArena::CGameControllerArena(CGameControllerTournDM *pController)
 
 void CGameControllerArena::OnPlayerEnter(int CID)
 {
-    m_apOpponents[m_NumPlayers++] = GameServer()->m_apPlayers[CID];
+    if(m_NumPlayers < MAX_OPPONENTS)
+    {
+        m_NumPlayers++;
+        if(m_apOpponents[0])
+            m_apOpponents[1] = GameServer()->m_apPlayers[CID];
+        else
+            m_apOpponents[0] = GameServer()->m_apPlayers[CID];
+    }
 }
 
 void CGameControllerArena::OnPlayerLeave(int CID)
@@ -525,11 +590,6 @@ void CGameControllerArena::OnPlayerLeave(int CID)
         {
             m_apOpponents[i] = 0;
             m_NumPlayers--;
-            if(m_NumPlayers == 1 && !m_Warmup)
-            {
-                m_Winner = m_apOpponents[0] ? m_apOpponents[0]->GetCID() : m_apOpponents[1]->GetCID();
-                EndRound();
-            }
             return;
         }
 }
@@ -547,12 +607,16 @@ void CGameControllerArena::OnCharacterDeath(class CCharacter *pVictim, class CPl
 
 void CGameControllerArena::DoWincheck()
 {
+    if(m_NumPlayers == 1)
+        for(int i = 0; i < MAX_OPPONENTS; i++)
+            if(m_apOpponents[i])
+                m_Winner = i;
+
     if(m_GameOverTick == -1 && !m_Warmup && !m_ResetRequested)
     {
         // gather some stats
         int Topscore = 0;
         int TopscoreCount = 0;
-        m_Winner = -1;
         for(int i = 0; i < MAX_OPPONENTS; i++)
         {
             if(m_apOpponents[i])
@@ -585,9 +649,30 @@ void CGameControllerArena::DoWincheck()
                 m_SuddenDeath = 1;
         }
     }
+    if(m_RoundRunning && m_NumPlayers == 1)
+    {
+        for(int i = 0; i < MAX_OPPONENTS; i++)
+            if(m_apOpponents[i])
+            {
+                m_Winner = i;
+                m_apOpponents[m_Winner]->m_Victories++;
+                EndRound();
+            }
+    }
 }
 
 void CGameControllerArena::StartRound()
+{
+    ResetGame();
+
+    m_RoundStartTick = Server()->Tick();
+    m_SuddenDeath = 0;
+    m_GameOverTick = -1;
+    m_Paused = false;
+    m_Warmup = Server()->TickSpeed()*g_Config.m_SvRoundWarmUp;
+}
+
+void CGameControllerArena::StartFight()
 {
     ResetGame();
 
@@ -599,12 +684,16 @@ void CGameControllerArena::StartRound()
     for(int i = 0; i < MAX_OPPONENTS; i++)
         if(m_apOpponents[i])
             m_apOpponents[i]->SetTeam(0, false);
+
+    m_RoundRunning = true;
 }
 
 void CGameControllerArena::EndRound()
 {
-    if(m_Warmup) // game can't end when we are running warmup
+    if(m_Warmup && !m_RoundRunning) // game can't end when we are running warmup
         return;
+
+    m_RoundRunning = false;
 
     char aBuf[256];
     if(m_apOpponents[0] && m_apOpponents[1])
@@ -618,7 +707,6 @@ void CGameControllerArena::EndRound()
     m_Paused = true;
     m_GameOverTick = Server()->Tick();
     m_SuddenDeath = 0;
-    m_Warmup = Server()->TickSpeed()*g_Config.m_SvRoundWarmUp;
 }
 
 void CGameControllerArena::PostReset()
@@ -635,32 +723,24 @@ void CGameControllerArena::PostReset()
 
 void CGameControllerArena::Tick()
 {
-    // adjust to wholegamewarmup if required
-    if(((bool)m_pController->m_Warmup) == m_TourneyStarted)
-    {
-        m_TourneyStarted = !m_pController->m_Warmup;
-        if(m_TourneyStarted)
-            m_Warmup = Server()->TickSpeed()*g_Config.m_SvRoundWarmUp;
-    }
-
     if(!m_TourneyStarted)
         m_Warmup = m_pController->m_Warmup;
 
     // do warmup
-    if(m_Warmup && !m_Paused && m_TourneyStarted)
+    if(m_Warmup && !m_Paused && !GameServer()->m_World.m_Paused && m_TourneyStarted)
     {
         if(m_NumPlayers >= 2)
             m_Warmup--;
         else
             m_Warmup = Server()->TickSpeed()*g_Config.m_SvRoundWarmUp;
         if(!m_Warmup)
-            StartRound();
+            StartFight();
     }
 
     // voted to spec -> disqualified
     if(!m_Warmup)
         for(int i = 0; i < MAX_OPPONENTS; i++)
-            if(m_apOpponents[i]->GetTeam() == TEAM_SPECTATORS)
+            if(m_apOpponents[i] && m_apOpponents[i]->GetTeam() == TEAM_SPECTATORS)
                 m_pController->ChangeArena(m_apOpponents[i]->GetCID(), -1);
 
     if(m_GameOverTick != -1)
@@ -669,7 +749,7 @@ void CGameControllerArena::Tick()
         if(Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*10)
         {
             for(int i = 0; i < MAX_OPPONENTS; i++)
-                if(i != m_Winner && m_apOpponents[i])
+                if(m_apOpponents[i] && i != m_Winner)
                 {
                     m_pController->ChangeArena(m_apOpponents[i]->GetCID(), -1);
                 }
@@ -678,7 +758,7 @@ void CGameControllerArena::Tick()
     }
 
     // game is Paused
-    if(m_Paused)
+    if(m_Paused || GameServer()->m_World.m_Paused)
         ++m_RoundStartTick;
 
     DoWincheck();

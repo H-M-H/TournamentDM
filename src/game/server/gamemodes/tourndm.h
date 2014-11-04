@@ -20,10 +20,13 @@ public:
     virtual void OnCharacterSpawn(class CCharacter *pChr);
     virtual int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
     virtual void DoWincheck();
+    virtual void StartRound();
     virtual void EndRound();
     virtual void OnPlayerInfoChange(class CPlayer *pP);
 
     virtual void Snap(int SnappingClient);
+
+     void StartTourney();
 
     // puts the players into tourney
     void SignIn(int CID);
@@ -92,6 +95,8 @@ public:
     void StartRound();
     void EndRound();
 
+    void StartFight();
+
     void OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
     void OnPlayerEnter(int CID);
     void OnPlayerLeave(int CID);
@@ -109,6 +114,8 @@ public:
     int m_NumPlayers;
 
     bool m_TourneyStarted;
+
+    bool m_RoundRunning; // wether tees are fighting here
 
     class CPlayer* m_apOpponents[2];
 

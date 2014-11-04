@@ -18,6 +18,12 @@ CGameWorld::CGameWorld()
 	m_ResetRequested = false;
 	for(int i = 0; i < NUM_ENTTYPES; i++)
 		m_apFirstEntityTypes[i] = 0;
+
+    for(int i = 0; i < 8; i++)
+    {
+        m_ArenaPaused[i] = false;
+        m_ArenaResetRequested[i] = false;
+    }
 }
 
 CGameWorld::~CGameWorld()

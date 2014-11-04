@@ -114,6 +114,8 @@ private:
 	int m_Health;
 	int m_Armor;
 
+    int m_TileIndex;
+
 	// ninja
 	struct
 	{

@@ -72,7 +72,7 @@ MACRO_CONFIG_INT(SvSpamprotection, sv_spamprotection, 1, 0, 1, CFGFLAG_SERVER, "
 MACRO_CONFIG_INT(SvRespawnDelayTDM, sv_respawn_delay_tdm, 3, 0, 10, CFGFLAG_SERVER, "Time needed to respawn after death in tdm gametype")
 
 MACRO_CONFIG_INT(SvArenas, sv_arenas, 1, 0, 1, CFGFLAG_SERVER, "Wether to use arenas for the fights, changing restarts game")
-MACRO_CONFIG_INT(SvStartWarmUp, sv_start_warmup, 20, 5, 1000, CFGFLAG_SERVER, "Time to wait until tourney starts")
+MACRO_CONFIG_INT(SvStartWarmUp, sv_start_warmup, 90, 5, 1000, CFGFLAG_SERVER, "Time to wait until tourney starts")
 MACRO_CONFIG_INT(SvRoundWarmUp, sv_round_warmup, 10, 0, 500, CFGFLAG_SERVER, "Time between rounds")
 MACRO_CONFIG_INT(SvColorize, sv_colorize, 1, 0, 1, CFGFLAG_SERVER, "Colorize tees in arenas")
 
