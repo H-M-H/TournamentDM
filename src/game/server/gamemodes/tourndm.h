@@ -16,7 +16,7 @@ public:
     virtual float EvaluateSpawnPos(CSpawnEval *pEval, vec2 Pos, int CID = -1);
     virtual void EvaluateSpawnType(CSpawnEval *pEval, int Type, int CID = -1);
     virtual bool OnEntity(int Index, vec2 Pos);
-    virtual void OnPlayerLeave(int CID);
+    virtual void OnPlayerLeave(int CID,  int TargetArena = -1);
     virtual void OnCharacterSpawn(class CCharacter *pChr);
     virtual int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
     virtual void DoWincheck();
