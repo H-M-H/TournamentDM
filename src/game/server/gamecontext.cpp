@@ -659,15 +659,9 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
             if(m_pController->m_GameType == 5)
             {
-                char aBuf[256];
                 if (str_comp_nocase(pMsg->m_pMessage, "/start") == 0)
                 {
                     ((CGameControllerTournDM*)m_pController)->SignIn(ClientID);
-                }
-                else if (str_comp_nocase(pMsg->m_pMessage, "/gameinfo") == 0)
-                {
-                    str_format(aBuf, sizeof(aBuf), "arena: %d", pPlayer->m_Arena);
-                    SendChatTarget(ClientID, aBuf);
                 }
                 else
                     SendChat(ClientID, Team, pMsg->m_pMessage);
