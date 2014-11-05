@@ -163,7 +163,7 @@ void CGameControllerTournDM::Tick()
         }
         else
         {
-            for(int Victories = 1; Victories <= 4; Victories++)
+            for(int Victories = 0; Victories <= 4; Victories++)
             {
                 int WaitingID = -1;
                 for(int i = 0; i < NUM_ARENAS; i++)
@@ -427,7 +427,6 @@ void CGameControllerTournDM::StartTourney()
     {
         m_TourneyStarted = true;
         Arena(i)->m_TourneyStarted = true;
-        Arena(i)->m_RoundRunning = true;
         Arena(i)->m_Warmup = Server()->TickSpeed()*g_Config.m_SvRoundWarmUp;
     }
     GameServer()->SendBroadcast("Tournament started, Good Luck !", -1);
@@ -632,11 +631,6 @@ void CGameControllerArena::DoWincheck()
     if(!m_TourneyStarted)
         return;
 
-    if(m_NumPlayers == 1)
-        for(int i = 0; i < MAX_OPPONENTS; i++)
-            if(m_apOpponents[i])
-                m_Winner = i;
-
     if(m_GameOverTick == -1 && !m_Warmup && !m_ResetRequested)
     {
         // gather some stats
@@ -675,11 +669,35 @@ void CGameControllerArena::DoWincheck()
                 m_SuddenDeath = 1;
         }
     }
-    if(m_RoundRunning && m_NumPlayers == 1)
+
+    if(m_NumPlayers == 1)
+        for(int i = 0; i < MAX_OPPONENTS; i++)
+            if(m_apOpponents[i])
+                m_Winner = i;
+
+    // handle odd tees
+    if(m_NumPlayers == 1 && m_pController->m_NumParticipants > 1)
     {
-                m_apOpponents[m_Winner]->m_Victories++;
-                EndRound();
+        for(int i = 0; i < MAX_CLIENTS; i++)
+            if(i != m_apOpponents[m_Winner]->GetCID() &&
+                    GameServer()->m_apPlayers[i] &&
+                    GameServer()->m_apPlayers[i]->m_Arena != -1)
+            {
+                if(GameServer()->m_apPlayers[i]->m_Victories == m_apOpponents[m_Winner]->m_Victories)
+                {
+                    if(!m_pController->Arena(GameServer()->m_apPlayers[i]->m_Arena)->m_RoundRunning)
+                    {
+                        return;
+                    }
+                }
+                else if(GameServer()->m_apPlayers[i]->m_Victories < m_apOpponents[m_Winner]->m_Victories)
+                    return;
+            }
+
+        m_apOpponents[m_Winner]->m_Victories++;
+        EndRound();
     }
+
 }
 
 void CGameControllerArena::StartRound()
@@ -711,9 +729,6 @@ void CGameControllerArena::StartFight()
 
 void CGameControllerArena::EndRound()
 {
-    if(m_Warmup && !m_RoundRunning) // game can't end when we are running warmup
-        return;
-
     m_RoundRunning = false;
 
     char aBuf[256];

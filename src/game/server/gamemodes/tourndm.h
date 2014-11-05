@@ -40,6 +40,7 @@ public:
     };
 
     bool m_TourneyStarted;
+    int m_NumParticipants;
 
 private:
 
@@ -47,8 +48,6 @@ private:
 
     // -1: no arena/spec/standard spawn | 0-7: arenas with their ID
     class CGameControllerArena* m_apArenas[NUM_ARENAS];
-
-    int m_NumParticipants;
 
     // stores wether arena can be used at all
     bool m_aActiveArenas[NUM_ARENAS];
