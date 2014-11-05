@@ -659,7 +659,44 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
             if(m_pController->m_GameType == 5)
             {
-                if (str_comp_nocase(pMsg->m_pMessage, "/start") == 0)
+                char aBuf[256];
+                if (str_comp_nocase(pMsg->m_pMessage, "/cmdlist") == 0)
+                {
+                    SendChatTarget(ClientID, "------------");
+                    SendChatTarget(ClientID, "'/cmdlist' - lists all commands");
+                    SendChatTarget(ClientID, "'/credits' - prints credits");
+                    SendChatTarget(ClientID, "'/gameinfo' - prints your arena, victories and the number of participants");
+                    SendChatTarget(ClientID, "'/help' - help");
+                    SendChatTarget(ClientID, "'/info' - prints information about this mod");
+                    SendChatTarget(ClientID, "'/join' - lets you join the tournament if possible");
+                }
+                else if (str_comp_nocase(pMsg->m_pMessage, "/credits") == 0)
+                {
+                    SendChatTarget(ClientID, "------------");
+                    SendChatTarget(ClientID, "This mod is developed by HMH");
+                    SendChatTarget(ClientID, "Motivation by Broken");
+                }
+                else if (str_comp_nocase(pMsg->m_pMessage, "/gameinfo") == 0)
+                {
+                    SendChatTarget(ClientID, "------------");
+                    str_format(aBuf, sizeof(aBuf), "current arena: %d victories: %d participants: %d", m_apPlayers[ClientID]->m_Arena, m_apPlayers[ClientID]->m_Victories, ((CGameControllerTournDM*)m_pController)->m_NumParticipants);
+                    SendChatTarget(ClientID, aBuf);
+                }
+                else if (str_comp_nocase(pMsg->m_pMessage, "/help") == 0)
+                {
+                    SendChatTarget(ClientID, "------------");
+                    SendChatTarget(ClientID, "For information about this mod type '/info'");
+                    SendChatTarget(ClientID, "To view all commands use '/cmdlist'");
+                    SendChatTarget(ClientID, "To see credits write '/credits'");
+                }
+                else if (str_comp_nocase(pMsg->m_pMessage, "/info") == 0)
+                {
+                    SendChatTarget(ClientID, "------------");
+                    SendChatTarget(ClientID, "This mod automates 1on1 tournaments, to join the tourney use '/join'");
+                    SendChatTarget(ClientID, "There can also be a zone to go in which lets you join");
+                    SendChatTarget(ClientID, "To see credits write '/credits'");
+                }
+                else if (str_comp_nocase(pMsg->m_pMessage, "/join") == 0)
                 {
                     ((CGameControllerTournDM*)m_pController)->SignIn(ClientID);
                 }
@@ -871,7 +908,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
                     if(pPlayer->GetTeam() == TEAM_SPECTATORS)
                         if(m_apPlayers[ClientID]->m_Arena == -1 && !g_Config.m_SvArenas)
                         {
-                            SendBroadcast("To join the tourney write: /start", ClientID);
+                            SendBroadcast("To join the tourney write: /join", ClientID);
                             return;
                         }
                 }
