@@ -716,13 +716,23 @@ void CCharacter::Die(int Killer, int Weapon)
 		m_pPlayer->GetCID(), Server()->ClientName(m_pPlayer->GetCID()), Weapon, ModeSpecial);
 	GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
 
-	// send the kill message
-	CNetMsg_Sv_KillMsg Msg;
-	Msg.m_Killer = Killer;
-	Msg.m_Victim = m_pPlayer->GetCID();
-	Msg.m_Weapon = Weapon;
-	Msg.m_ModeSpecial = ModeSpecial;
-	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
+    // send the kill message
+    CNetMsg_Sv_KillMsg Msg;
+    Msg.m_Killer = Killer;
+    Msg.m_Victim = m_pPlayer->GetCID();
+    Msg.m_Weapon = Weapon;
+    Msg.m_ModeSpecial = ModeSpecial;
+
+    if(GameServer()->m_pController->m_GameType != IGameController::GAMETYPE_TOURNDM)
+        Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
+    else
+    {
+        for(int i = 0; i < MAX_CLIENTS; i++)
+        {
+            if(GameServer()->m_apPlayers[i] && m_Arena != -1 && (GameServer()->m_apPlayers[i]->m_Arena == m_Arena || GameServer()->m_apPlayers[i]->m_Arena == -1))
+                Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, i);
+        }
+    }
 
 	// a nice sound
     GameServer()->CreateSound(m_Pos, SOUND_PLAYER_DIE, GameServer()->CmaskArena(m_Arena));

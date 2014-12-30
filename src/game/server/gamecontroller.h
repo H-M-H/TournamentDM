@@ -141,7 +141,7 @@ public:
 
 	virtual void OnPlayerInfoChange(class CPlayer *pP);
 
-    virtual void OnPlayerLeave(int CID, int TargetArena = -1) {}
+    virtual void OnPlayerLeave(int CID) {}
 
 	//
     virtual bool CanSpawn(int Team, vec2 *pPos, int CID = -1);

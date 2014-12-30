@@ -175,6 +175,8 @@ public:
 	virtual const char *Version();
 	virtual const char *NetVersion();
 
+    virtual const char* GetTourneyState();
+
     int CmaskArena(int Arena);
 };
 

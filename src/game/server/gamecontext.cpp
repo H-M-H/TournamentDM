@@ -250,21 +250,36 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText)
 	}
 	else
 	{
-		CNetMsg_Sv_Chat Msg;
-		Msg.m_Team = 1;
-		Msg.m_ClientID = ChatterClientID;
-		Msg.m_pMessage = pText;
+            CNetMsg_Sv_Chat Msg;
+            Msg.m_Team = 1;
+            Msg.m_ClientID = ChatterClientID;
+            Msg.m_pMessage = pText;
 
-		// pack one for the recording only
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NOSEND, -1);
+            // pack one for the recording only
+            Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NOSEND, -1);
 
-		// send to the clients
-		for(int i = 0; i < MAX_CLIENTS; i++)
-		{
-			if(m_apPlayers[i] && m_apPlayers[i]->GetTeam() == Team)
-				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
-		}
-	}
+            if(m_pController->m_GameType == IGameController::GAMETYPE_TOURNDM)
+            {
+                if(!m_apPlayers[ChatterClientID])
+                    return;
+
+                // send to the clients
+                for(int i = 0; i < MAX_CLIENTS; i++)
+                {
+                    if(m_apPlayers[i] && m_apPlayers[i]->m_Arena == m_apPlayers[ChatterClientID]->m_Arena)
+                        Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
+                }
+            }
+            else
+            {
+                // send to the clients
+                for(int i = 0; i < MAX_CLIENTS; i++)
+                {
+                    if(m_apPlayers[i] && m_apPlayers[i]->GetTeam() == Team)
+                        Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
+                }
+            }
+    }
 }
 
 void CGameContext::SendEmoticon(int ClientID, int Emoticon)
@@ -678,8 +693,13 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
                 }
                 else if (str_comp_nocase(pMsg->m_pMessage, "/gameinfo") == 0)
                 {
+                    int Victories = 0;
+
+                    if(m_apPlayers[ClientID]->m_Participating && ((CGameControllerTournDM*)m_pController)->m_TourneyStarted)
+                        Victories = ((CGameControllerTournDM*)m_pController)->m_aTPInfo[ClientID].m_Victories;
+
                     SendChatTarget(ClientID, "------------");
-                    str_format(aBuf, sizeof(aBuf), "current arena: %d victories: %d participants: %d", m_apPlayers[ClientID]->m_Arena, m_apPlayers[ClientID]->m_Victories, ((CGameControllerTournDM*)m_pController)->m_NumParticipants);
+                    str_format(aBuf, sizeof(aBuf), "current arena: %d victories: %d participants: %d left Tees: %d", m_apPlayers[ClientID]->m_Arena, Victories, ((CGameControllerTournDM*)m_pController)->m_NumParticipants, ((CGameControllerTournDM*)m_pController)->m_NumActiveParticipants);
                     SendChatTarget(ClientID, aBuf);
                 }
                 else if (str_comp_nocase(pMsg->m_pMessage, "/help") == 0)
@@ -695,6 +715,17 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
                     SendChatTarget(ClientID, "This mod automates 1on1 tournaments, to join the tourney use '/join'");
                     SendChatTarget(ClientID, "There can also be a zone to go in which lets you join");
                     SendChatTarget(ClientID, "To see credits write '/credits'");
+                }
+                else if (str_comp_nocase(pMsg->m_pMessage, "/tid") == 0)
+                {
+                    for(int i = 0; i < MAX_CLIENTS; i++)
+                    {
+                        if(m_apPlayers[i])
+                        {
+                            str_format(aBuf, sizeof(aBuf), "ID: %d TID: %d", i, m_apPlayers[i]->m_TID);
+                            SendChatTarget(ClientID, aBuf);
+                        }
+                    }
                 }
                 else if (str_comp_nocase(pMsg->m_pMessage, "/join") == 0)
                 {
@@ -1694,5 +1725,15 @@ int CGameContext::CmaskArena(int Arena)
 const char *CGameContext::GameType() { return m_pController && m_pController->m_pGameType ? m_pController->m_pGameType : ""; }
 const char *CGameContext::Version() { return GAME_VERSION; }
 const char *CGameContext::NetVersion() { return GAME_NETVERSION; }
+
+const char *CGameContext::GetTourneyState()
+{
+    if(m_pController->m_GameType == IGameController::GAMETYPE_TOURNDM)
+    {
+        return ((CGameControllerTournDM*)m_pController)->GetTourneyState();
+    }
+    else
+        return '\0';
+}
 
 IGameServer *CreateGameServer() { return new CGameContext; }

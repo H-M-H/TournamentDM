@@ -16,7 +16,7 @@ public:
     virtual float EvaluateSpawnPos(CSpawnEval *pEval, vec2 Pos, int CID = -1);
     virtual void EvaluateSpawnType(CSpawnEval *pEval, int Type, int CID = -1);
     virtual bool OnEntity(int Index, vec2 Pos);
-    virtual void OnPlayerLeave(int CID,  int TargetArena = -1);
+    virtual void OnPlayerLeave(int CID);
     virtual void OnCharacterSpawn(class CCharacter *pChr);
     virtual int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
     virtual void DoWincheck();
@@ -26,7 +26,11 @@ public:
 
     virtual void Snap(int SnappingClient);
 
-     void StartTourney();
+    void HandleBracket();
+    void HandleOddPlayers();
+    void StartTourney();
+
+    const char *GetTourneyState();
 
     // puts the players into tourney
     void SignIn(int CID);
@@ -40,7 +44,21 @@ public:
     };
 
     bool m_TourneyStarted;
+    int m_NumMatches;
     int m_NumParticipants;
+    int m_NumActiveParticipants; // those who still can win
+
+    class CPlayer* m_apBracketPlayers[16];
+
+    // players tourney information
+    struct CTInfo
+    {
+        int m_TourneyState;
+        int m_Victories;
+        int m_Losses;
+    }m_aTPInfo[16]; // for normal Playerorder
+
+    CTInfo* m_apTBInfo[16]; // bracket order
 
 private:
 
@@ -56,6 +74,12 @@ private:
 
     // stores g_Config.m_SvArenas
     bool m_OldArenaMode;
+
+    // Joincounter to determine TID
+    int m_JoinCount;
+
+    // wether odd tees are handled atm
+    bool m_HandlingOdds;
 };
 
 
@@ -82,8 +106,6 @@ protected:
     int m_GameOverTick;
     int m_SuddenDeath;
 
-    int m_Winner;
-
 public:
     CGameControllerArena(class CGameControllerTournDM *pController);
 
@@ -94,13 +116,14 @@ public:
     void DoWarmup(int Seconds);
 
     void StartRound();
-    void EndRound();
+    void EndRound(int winnerID, bool Left = false);
 
     void StartFight();
 
     void OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
     void OnPlayerEnter(int CID);
     void OnPlayerLeave(int CID);
+    int OnPlayerArenaLeave(int CID); // returns m_apOpponents-ID from Arena
 
     void EvaluateSpawnType(CSpawnEval *pEval, int Type, int CID);
 

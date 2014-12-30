@@ -22,8 +22,8 @@ CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, int Team)
 	m_LastActionTick = Server()->Tick();
 	m_TeamChangeTick = Server()->Tick();
 
-    m_Victories = 0;
-    m_Losses = 0;
+    m_TID = -1;
+    m_Participating = false;
     m_Arena = -1;
 }
 

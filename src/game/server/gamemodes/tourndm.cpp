@@ -8,6 +8,14 @@
 
 #include "tourndm.h"
 
+enum
+{
+    TOURN_SPECTATING=0,
+    TOURN_PARTICIPATING=1,
+    TOURN_WAITING=2,
+    TOURN_DEFEATED=4
+};
+
 CGameControllerTournDM::CGameControllerTournDM(class CGameContext *pGameServer)
 : IGameController(pGameServer)
 {
@@ -18,14 +26,27 @@ CGameControllerTournDM::CGameControllerTournDM(class CGameContext *pGameServer)
 
     m_Warmup = Server()->TickSpeed()*g_Config.m_SvStartWarmUp;
 
+    m_NumMatches = 0;
+    m_JoinCount = 0;
     m_NumParticipants = 0;
+    m_NumActiveParticipants = 0;
     m_NumActiveArenas = 0;
     m_TourneyStarted = false;
+    m_HandlingOdds = false;
 
     // every arena gets an own controller
     // create always 8 in case someone changes settings...
     for(int i = 0; i < NUM_ARENAS; i++)
         m_apArenas[i] = new CGameControllerArena(this);
+
+    for(int i = 0; i < MAX_CLIENTS; i++)
+    {
+        m_apBracketPlayers[i] = 0;
+        m_aTPInfo[i].m_TourneyState = 0;
+        m_aTPInfo[i].m_Victories = 0;
+        m_aTPInfo[i].m_Losses = 0;
+        m_apTBInfo[i] = 0;
+    }
 
     m_aNumSpawnPoints[3] = 0;
     m_aNumSpawnPoints[4] = 0;
@@ -58,7 +79,7 @@ void CGameControllerTournDM::UpdateArenaStates()
 void CGameControllerTournDM::SignIn(int CID)
 {
     // joined already
-    if(GameServer()->m_apPlayers[CID]->m_Arena != -1)
+    if(GameServer()->m_apPlayers[CID]->m_Participating)
         return;
 
     if(!m_Warmup)
@@ -73,21 +94,22 @@ void CGameControllerTournDM::SignIn(int CID)
         return;
     }
 
-    for(int i = 0; i < NUM_ARENAS; i++)
-        if(ChangeArena(CID, i))
-        {
-            m_NumParticipants++;
-            char aBuf[128];
-            str_format(aBuf, sizeof(aBuf), "'%s' joined the tournament !", Server()->ClientName(CID));
-            GameServer()->SendChatTarget(-1, aBuf);
-            GameServer()->m_apPlayers[CID]->m_Score = 0;
-            if(m_NumParticipants == 2)
-            {
-                GameServer()->SendChatTarget(-1, "You can join the tourney until warmup is over");
-                GameServer()->SendChatTarget(-1, "GO GO GO !!!");
-            }
-            return;
-        }
+    m_NumParticipants++;
+    char aBuf[128];
+    str_format(aBuf, sizeof(aBuf), "'%s' joined the tournament !", Server()->ClientName(CID));
+    GameServer()->SendChatTarget(-1, aBuf);
+    GameServer()->m_apPlayers[CID]->m_Score = 0;
+
+    // TID is gonna be corrected at tourney start, this here is only to save the join order
+    GameServer()->m_apPlayers[CID]->m_TID = m_JoinCount;
+    m_JoinCount++;
+
+    GameServer()->m_apPlayers[CID]->m_Participating = true;
+    if(m_NumParticipants == 2)
+    {
+        GameServer()->SendChatTarget(-1, "You can join the tourney until warmup is over");
+        GameServer()->SendChatTarget(-1, "GO GO GO !!!");
+    }
 }
 
 bool CGameControllerTournDM::ChangeArena(int CID, int ID)
@@ -101,7 +123,8 @@ bool CGameControllerTournDM::ChangeArena(int CID, int ID)
     if(ID == GameServer()->m_apPlayers[CID]->m_Arena)
         return false;
 
-    OnPlayerLeave(CID, ID);
+    if(GameServer()->m_apPlayers[CID]->m_Arena != -1)
+        Arena(GameServer()->m_apPlayers[CID]->m_Arena)->OnPlayerArenaLeave(CID);
 
     GameServer()->m_apPlayers[CID]->m_Arena = ID;
 
@@ -144,6 +167,10 @@ void CGameControllerTournDM::Tick()
 
     for(int i = 0; i < NUM_ARENAS; i++)
     {
+        // no players ? --> no tick !
+        if(!m_apArenas[i]->m_NumPlayers)
+            continue;
+
         m_apArenas[i]->Tick();
         GameServer()->m_World.m_ArenaResetRequested[i] = Arena(i)->m_ResetRequested;
         GameServer()->m_World.m_ArenaPaused[i] = Arena(i)->m_Paused;
@@ -151,6 +178,9 @@ void CGameControllerTournDM::Tick()
 
     if(!GameServer()->m_World.m_Paused)
     {
+        if(m_Warmup > Server()->TickSpeed()*g_Config.m_SvStartWarmUp)
+            m_Warmup = Server()->TickSpeed()*g_Config.m_SvStartWarmUp;
+
         // do warmup
         if(m_Warmup || (m_NumParticipants < 2 && !m_TourneyStarted))
         {
@@ -163,36 +193,14 @@ void CGameControllerTournDM::Tick()
         }
         else
         {
-            for(int Victories = 0; Victories <= 4; Victories++)
-            {
-                int WaitingID = -1;
-                for(int i = 0; i < NUM_ARENAS; i++)
-                    if(Arena(i)->m_NumPlayers == 1 && !Arena(i)->m_RoundRunning)
-                    {
-                        // just to be sure
-                        if(((bool)Arena(i)->m_apOpponents[0]) == ((bool)Arena(i)->m_apOpponents[1]))
-                            continue;
-
-                        int PlayerID = Arena(i)->m_apOpponents[0] ? Arena(i)->m_apOpponents[0]->GetCID() : Arena(i)->m_apOpponents[1]->GetCID();
-                        if(GameServer()->m_apPlayers[PlayerID]->m_Victories == Victories)
-                        {
-                            if(WaitingID == -1)
-                                WaitingID = PlayerID;
-                            else
-                            {
-                                ChangeArena(PlayerID, GameServer()->m_apPlayers[WaitingID]->m_Arena);
-                                WaitingID = -1;
-                            }
-                        }
-                    }
-            }
+            HandleBracket();
         }
     }
 
     if(m_GameOverTick != -1)
     {
         // game over.. wait for restart
-        if(Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*10)
+        if(Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*20)
         {
             StartRound();
             m_RoundCount++;
@@ -204,6 +212,103 @@ void CGameControllerTournDM::Tick()
         ++m_RoundStartTick;
 
     DoWincheck();
+}
+
+void CGameControllerTournDM::HandleBracket()
+{
+    if(m_HandlingOdds)
+    {
+        if(m_NumMatches)
+            m_HandlingOdds = false;
+        return;
+    }
+
+    // iterate through all tees and check wether they are ready for next fight
+    for(int i = 0; i < m_NumParticipants; i++)
+    {
+        if(m_apTBInfo[i]->m_TourneyState != (TOURN_PARTICIPATING|TOURN_DEFEATED))
+        {
+            // search partner(s)   2^victories = sum(2^nextplayers[i]->victories) ---> need to fight
+            int MagicNumber = 0;
+            for(int j = i + 1; j < m_NumParticipants; j++)
+            {
+                if(m_apTBInfo[j]->m_TourneyState != (TOURN_PARTICIPATING|TOURN_DEFEATED))
+                    MagicNumber += 1 << m_apTBInfo[j]->m_Victories;
+
+                if(MagicNumber == 1 << m_apTBInfo[i]->m_Victories)
+                {
+                    if(m_apTBInfo[i]->m_Victories == m_apTBInfo[j]->m_Victories && m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING) && m_apTBInfo[j]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING))
+                        for(int n = 0; n < NUM_ARENAS; n++)
+                            if(!Arena(n)->m_NumPlayers && m_aActiveArenas[n])
+                            {
+                                if(m_apBracketPlayers[i] && m_apBracketPlayers[j])
+                                {
+                                    if(m_apBracketPlayers[i]->m_Arena == -1 && m_apBracketPlayers[j]->m_Arena == -1)
+                                    {
+                                        ChangeArena(m_apBracketPlayers[i]->GetCID(), n);
+                                        ChangeArena(m_apBracketPlayers[j]->GetCID(), n);
+                                    }
+                                }
+                                else if(m_apBracketPlayers[i] || m_apBracketPlayers[j])
+                                {
+                                    if(m_apBracketPlayers[i] && m_apBracketPlayers[i]->m_Arena == -1)
+                                        ChangeArena(m_apBracketPlayers[i]->GetCID(), n);
+                                    else if(m_apBracketPlayers[j] && m_apBracketPlayers[j]->m_Arena == -1)
+                                        ChangeArena(m_apBracketPlayers[j]->GetCID(), n);
+                                }
+                                else
+                                {
+                                    m_apTBInfo[i]->m_Victories++;
+                                    m_apTBInfo[j]->m_Losses++;
+                                    m_apTBInfo[j]->m_TourneyState = (TOURN_PARTICIPATING|TOURN_DEFEATED);
+                                    m_NumActiveParticipants--;
+                                    m_NumMatches++;
+                                }
+                                i = j+1;
+                                break;
+                            }
+                    break;
+                }
+            }
+        }
+    }
+
+}
+
+void CGameControllerTournDM::HandleOddPlayers()
+{
+    int n = 0;
+    for(int i = 2; i <= m_NumParticipants; i *= 2)
+        n++;
+    int OptimalMatches = 1<<n;
+    int OddMatches = m_NumParticipants - OptimalMatches;
+    int OddPlayers = OddMatches*2;
+    int LuckyPlayers = (m_NumParticipants - OddPlayers) % m_NumParticipants;
+    m_HandlingOdds = LuckyPlayers;
+
+    int LastFreeArena = 0;
+    for(int i = 0; i < LuckyPlayers; i++)
+    {
+        // all those luckyplayers get an Arena without enemies and thus a free win
+        if(m_apBracketPlayers[i] && m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING))
+        {
+            for(int n = 0; n < NUM_ARENAS; n++)
+                if(!Arena(n)->m_NumPlayers && ChangeArena(m_apBracketPlayers[i]->GetCID(), n))
+                {
+                    LastFreeArena = n;
+                    break;
+                }
+        }
+    }
+
+    // now real fights
+    for(int i = LuckyPlayers; i < m_NumParticipants; i++)
+    {
+        if(m_apBracketPlayers[i] && m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING))
+            for(int n = LastFreeArena + 1; n < NUM_ARENAS; n++)
+                if(ChangeArena(m_apBracketPlayers[i]->GetCID(), n))
+                    break;
+    }
 }
 
 bool CGameControllerTournDM::CanSpawn(int Team, vec2 *pOutPos, int CID)
@@ -354,14 +459,19 @@ bool CGameControllerTournDM::OnEntity(int Index, vec2 Pos)
     return false;
 }
 
-void CGameControllerTournDM::OnPlayerLeave(int CID, int TargetArena)
+void CGameControllerTournDM::OnPlayerLeave(int CID)
 {
-    if(GameServer()->m_apPlayers[CID]->m_Arena != -1)
+    if(GameServer()->m_apPlayers[CID]->m_Participating)
     {
-        if(TargetArena == -1)
+        // once started dont change this and keep it for stats
+        if(!m_TourneyStarted)
             m_NumParticipants--;
-        Arena(GameServer()->m_apPlayers[CID]->m_Arena)->OnPlayerLeave(CID);
+        else
+            m_apBracketPlayers[GameServer()->m_apPlayers[CID]->m_TID] = 0;
     }
+
+    if(GameServer()->m_apPlayers[CID]->m_Arena != -1)
+        Arena(GameServer()->m_apPlayers[CID]->m_Arena)->OnPlayerLeave(CID);
 }
 
 int CGameControllerTournDM::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
@@ -379,19 +489,29 @@ int CGameControllerTournDM::OnCharacterDeath(class CCharacter *pVictim, class CP
 void CGameControllerTournDM::OnCharacterSpawn(CCharacter *pChr)
 {
     IGameController::OnCharacterSpawn(pChr);
-    if(pChr->m_Arena == -1)
-        pChr->GetPlayer()->m_Score = -100;
+    if(!pChr->GetPlayer()->m_Participating)
+        pChr->GetPlayer()->m_Score = -1000;
+    else if(pChr->GetPlayer()->m_Arena == -1)
+    {
+        if(m_TourneyStarted && pChr->GetPlayer()->m_TID != -1)
+        {
+            if(m_apTBInfo[pChr->GetPlayer()->m_TID]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_DEFEATED))
+                pChr->GetPlayer()->m_Score = -1;
+            else
+                pChr->GetPlayer()->m_Score = m_apTBInfo[pChr->GetPlayer()->m_TID]->m_Victories;
+        }
+    }
 }
 
 void CGameControllerTournDM::DoWincheck()
 {
     if(m_GameOverTick == -1 && !m_Warmup && !GameServer()->m_World.m_ResetRequested)
     {
-       if(m_NumParticipants == 1)
+       if(m_NumActiveParticipants == 1)
        {
            int P = -1;
            for(int i = 0; i < MAX_CLIENTS; i++)
-               if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->m_Arena != -1)
+               if(m_apBracketPlayers[i] && m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING))
                {
                    P = i;
                    break;
@@ -400,7 +520,7 @@ void CGameControllerTournDM::DoWincheck()
            if(P != -1)
            {
                char aBuf[256];
-               str_format(aBuf, sizeof(aBuf), "'%s' wins the tournament !", Server()->ClientName(P));
+               str_format(aBuf, sizeof(aBuf), "'%s' wins the tournament !", Server()->ClientName(m_apBracketPlayers[P]->GetCID()));
                GameServer()->SendChatTarget(-1, aBuf);
                GameServer()->SendChatTarget(-1, "Congratulations !");
            }
@@ -413,13 +533,28 @@ void CGameControllerTournDM::StartTourney()
 {
     ResetGame();
 
-    for(int i = 0; i < MAX_CLIENTS; i++)
+    // correct TIDs
+    for(int n = 0; n < m_NumParticipants; n++)
     {
-        if(GameServer()->m_apPlayers[i])
+        int min = -1;
+        int minID = 0;
+        for(int i = 0; i < MAX_CLIENTS; i++)
         {
-            // reset tourney stuff
-            GameServer()->m_apPlayers[i]->m_Victories = 0;
-            GameServer()->m_apPlayers[i]->m_Losses = 0;
+            if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->m_Participating)
+            {
+                if((min > GameServer()->m_apPlayers[i]->m_TID || min == -1) && GameServer()->m_apPlayers[i]->m_TID >= n)
+                {
+                    min = GameServer()->m_apPlayers[i]->m_TID;
+                    minID = i;
+                }
+            }
+        }
+        if(GameServer()->m_apPlayers[minID])
+        {
+            GameServer()->m_apPlayers[minID]->m_TID = n;
+            m_apBracketPlayers[n] = GameServer()->m_apPlayers[minID];
+            m_apTBInfo[n] = &m_aTPInfo[minID];
+            m_apTBInfo[n]->m_TourneyState = (TOURN_PARTICIPATING|TOURN_WAITING);
         }
     }
 
@@ -429,7 +564,13 @@ void CGameControllerTournDM::StartTourney()
         Arena(i)->m_TourneyStarted = true;
         Arena(i)->m_Warmup = Server()->TickSpeed()*g_Config.m_SvRoundWarmUp;
     }
+
+    m_NumActiveParticipants = m_NumParticipants;
+
     GameServer()->SendBroadcast("Tournament started, Good Luck !", -1);
+
+    // get rid of odd players and let them fight first
+    HandleOddPlayers();
 }
 
 void CGameControllerTournDM::StartRound()
@@ -438,7 +579,27 @@ void CGameControllerTournDM::StartRound()
         if(GameServer()->m_apPlayers[i])
             ChangeArena(i, -1);
 
+    for(int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if(GameServer()->m_apPlayers[i])
+        {
+            // reset tourney stuff
+            m_aTPInfo[i].m_TourneyState = 0;
+            m_aTPInfo[i].m_Victories = 0;
+            m_aTPInfo[i].m_Losses = 0;
+            m_apTBInfo[i] = 0;
+            GameServer()->m_apPlayers[i]->m_TID = -1;
+            GameServer()->m_apPlayers[i]->m_Participating = false;
+        }
+        m_apBracketPlayers[i] = 0;
+    }
+
+    m_NumMatches = 0;
+    m_JoinCount = 0;
+    m_NumParticipants = 0;
+    m_NumActiveParticipants = 0;
     m_TourneyStarted = false;
+    m_HandlingOdds = false;
     for(int i = 0; i < NUM_ARENAS; i++)
         Arena(i)->m_TourneyStarted = false;
 
@@ -453,6 +614,17 @@ void CGameControllerTournDM::EndRound()
     GameServer()->m_World.m_Paused = true;
     m_GameOverTick = Server()->Tick();
     m_SuddenDeath = 0;
+
+    for(int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if(GameServer()->m_apPlayers[i])
+        {
+            if(GameServer()->m_apPlayers[i]->m_Participating)
+                GameServer()->m_apPlayers[i]->m_Score = m_apTBInfo[GameServer()->m_apPlayers[i]->m_TID]->m_Victories;
+            else
+                GameServer()->m_apPlayers[i]->m_Score = -1000;
+        }
+    }
 }
 
 void CGameControllerTournDM::PostReset()
@@ -559,6 +731,24 @@ void CGameControllerTournDM::Snap(int SnappingClient)
     pGameInfoObj->m_RoundCurrent = m_RoundCount+1;
 }
 
+const char* CGameControllerTournDM::GetTourneyState()
+{
+    char aBuf[32];
+    if(!m_TourneyStarted && m_NumParticipants < 2)
+        str_format(aBuf, sizeof(aBuf), "waiting for players");
+    else if (!m_TourneyStarted && m_NumParticipants >= 2)
+        str_format(aBuf, sizeof(aBuf), "starting in %d seconds", m_Warmup/Server()->TickSpeed());
+    else if (m_TourneyStarted && m_GameOverTick == -1)
+        str_format(aBuf, sizeof(aBuf), "%d players left", m_NumActiveParticipants);
+    else if (m_TourneyStarted && m_GameOverTick != -1)
+        str_format(aBuf, sizeof(aBuf), "restarting");
+    else
+        str_format(aBuf, sizeof(aBuf), "");
+
+
+    const char* r = aBuf;
+    return r;
+}
 
 // /////////////////////////////////////////////////////////////// //
 
@@ -576,7 +766,6 @@ CGameControllerArena::CGameControllerArena(CGameControllerTournDM *pController)
     m_ResetRequested = false;
     m_Paused = false;
     m_RoundRunning = false;
-    m_Winner = 0;
 
     m_GameOverTick = -1;
     m_SuddenDeath = 0;
@@ -589,6 +778,8 @@ CGameControllerArena::CGameControllerArena(CGameControllerTournDM *pController)
 
 void CGameControllerArena::OnPlayerEnter(int CID)
 {
+    Controller()->m_apTBInfo[GameServer()->m_apPlayers[CID]->m_TID]->m_TourneyState = TOURN_PARTICIPATING;
+
     if(m_NumPlayers == 1)
     {
         m_NumPlayers++;
@@ -601,18 +792,27 @@ void CGameControllerArena::OnPlayerEnter(int CID)
     {
         m_NumPlayers++;
         m_apOpponents[0] = GameServer()->m_apPlayers[CID];
+        StartRound();
     }
 }
 
 void CGameControllerArena::OnPlayerLeave(int CID)
 { 
+    int ID = OnPlayerArenaLeave(CID);
+    if(m_NumPlayers == 1 && ID != -1)
+        EndRound(!ID, true);
+}
+
+int CGameControllerArena::OnPlayerArenaLeave(int CID)
+{
     for(int i = 0; i < MAX_OPPONENTS; i++)
         if(m_apOpponents[i] && m_apOpponents[i]->GetCID() == CID)
         {
             m_apOpponents[i] = 0;
             m_NumPlayers--;
-            return;
+            return i;
         }
+    return -1;
 }
 
 void CGameControllerArena::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
@@ -628,76 +828,31 @@ void CGameControllerArena::OnCharacterDeath(class CCharacter *pVictim, class CPl
 
 void CGameControllerArena::DoWincheck()
 {    
-    if(!m_TourneyStarted)
+    if(!m_TourneyStarted || !m_NumPlayers)
         return;
 
     if(m_GameOverTick == -1 && !m_Warmup && !m_ResetRequested)
     {
-        // gather some stats
-        int Topscore = 0;
-        int TopscoreCount = 0;
-        for(int i = 0; i < MAX_OPPONENTS; i++)
+        if(m_NumPlayers == 1)
         {
-            if(m_apOpponents[i])
-            {
-                if(m_apOpponents[i]->m_Score > Topscore)
-                {
-                    Topscore = m_apOpponents[i]->m_Score;
-                    TopscoreCount = 1;
-                    m_Winner = i;
-                }
-                else if(m_apOpponents[i]->m_Score == Topscore)
-                    TopscoreCount++;
-            }
+            EndRound(m_apOpponents[0] ? 0 : 1);
+            return;
         }
 
-        // check score win condition
+        int TopID = m_apOpponents[0]->m_Score > m_apOpponents[1]->m_Score ? 0 : 1;
+        int Topscore = m_apOpponents[TopID]->m_Score;
+
         if((g_Config.m_SvScorelimit > 0 && Topscore >= g_Config.m_SvScorelimit) ||
             (g_Config.m_SvTimelimit > 0 && (Server()->Tick()-m_RoundStartTick) >= g_Config.m_SvTimelimit*Server()->TickSpeed()*60))
         {
-            if(TopscoreCount == 1)
+            if(m_apOpponents[0]->m_Score != m_apOpponents[1]->m_Score)
             {
-                m_apOpponents[m_Winner]->m_Victories++;
-                for(int i = 0; i < MAX_OPPONENTS; i++)
-                    if(i != m_Winner && m_apOpponents[i])
-                        m_apOpponents[i]->m_Losses++;
-
-                EndRound();
-                return;
+                EndRound(TopID);
             }
             else
-                m_SuddenDeath = 1;
+                m_SuddenDeath = true;
         }
     }
-
-    if(m_NumPlayers == 1)
-        for(int i = 0; i < MAX_OPPONENTS; i++)
-            if(m_apOpponents[i])
-                m_Winner = i;
-
-    // handle odd tees
-    if(m_NumPlayers == 1 && m_pController->m_NumParticipants > 1)
-    {
-        for(int i = 0; i < MAX_CLIENTS; i++)
-            if(i != m_apOpponents[m_Winner]->GetCID() &&
-                    GameServer()->m_apPlayers[i] &&
-                    GameServer()->m_apPlayers[i]->m_Arena != -1)
-            {
-                if(GameServer()->m_apPlayers[i]->m_Victories == m_apOpponents[m_Winner]->m_Victories)
-                {
-                    if(!m_pController->Arena(GameServer()->m_apPlayers[i]->m_Arena)->m_RoundRunning)
-                    {
-                        return;
-                    }
-                }
-                else if(GameServer()->m_apPlayers[i]->m_Victories < m_apOpponents[m_Winner]->m_Victories)
-                    return;
-            }
-
-        m_apOpponents[m_Winner]->m_Victories++;
-        EndRound();
-    }
-
 }
 
 void CGameControllerArena::StartRound()
@@ -722,27 +877,50 @@ void CGameControllerArena::StartFight()
 
     for(int i = 0; i < MAX_OPPONENTS; i++)
         if(m_apOpponents[i])
+        {
             m_apOpponents[i]->SetTeam(0, false);
+        }
 
     m_RoundRunning = true;
 }
 
-void CGameControllerArena::EndRound()
+void CGameControllerArena::EndRound(int winnerID, bool Left)
 {
     m_RoundRunning = false;
 
     char aBuf[256];
-    if(m_apOpponents[0] && m_apOpponents[1])
-        str_format(aBuf, sizeof(aBuf), "'%s' defeated '%s' !", Server()->ClientName(m_apOpponents[m_Winner]->GetCID()), Server()->ClientName(m_apOpponents[!m_Winner]->GetCID()));
-    else if(m_apOpponents[m_Winner])
-        str_format(aBuf, sizeof(aBuf), "'%s' won a round !", Server()->ClientName(m_apOpponents[m_Winner]->GetCID()));
+    if(m_NumPlayers == 2)
+        str_format(aBuf, sizeof(aBuf), "'%s' defeated '%s' !", Server()->ClientName(m_apOpponents[winnerID]->GetCID()), Server()->ClientName(m_apOpponents[!winnerID]->GetCID()));
+    else if(m_apOpponents[winnerID])
+        str_format(aBuf, sizeof(aBuf), "'%s' won a round !", Server()->ClientName(m_apOpponents[winnerID]->GetCID()));
 
-    if(m_apOpponents[0] || m_apOpponents[1])
+    if(m_NumPlayers)
         GameServer()->SendChatTarget(-1, aBuf);
+
+    if(m_NumPlayers == 2)
+    {
+        Controller()->m_apTBInfo[m_apOpponents[winnerID]->m_TID]->m_TourneyState = TOURN_PARTICIPATING|TOURN_WAITING;
+        Controller()->m_apTBInfo[m_apOpponents[!winnerID]->m_TID]->m_TourneyState = TOURN_PARTICIPATING|TOURN_DEFEATED;
+        Controller()->m_apTBInfo[m_apOpponents[winnerID]->m_TID]->m_Victories++;
+        Controller()->m_apTBInfo[m_apOpponents[!winnerID]->m_TID]->m_Losses++;
+
+        Controller()->m_NumActiveParticipants--;
+    }
+    else if(m_apOpponents[winnerID])
+    {
+        Controller()->m_apTBInfo[m_apOpponents[winnerID]->m_TID]->m_TourneyState = TOURN_PARTICIPATING|TOURN_WAITING;
+        Controller()->m_apTBInfo[m_apOpponents[winnerID]->m_TID]->m_Victories++;
+
+        // this is not an odd round but a player left --> decrease m_NumActiveParticipants
+        if(Left)
+            Controller()->m_NumActiveParticipants--;
+    }
 
     m_Paused = true;
     m_GameOverTick = Server()->Tick();
     m_SuddenDeath = 0;
+
+    Controller()->m_NumMatches++;
 }
 
 void CGameControllerArena::PostReset()
@@ -765,10 +943,7 @@ void CGameControllerArena::Tick()
     // do warmup
     if(m_Warmup && !m_Paused && !GameServer()->m_World.m_Paused && m_TourneyStarted)
     {
-        if(m_NumPlayers >= 2)
-            m_Warmup--;
-        else
-            m_Warmup = Server()->TickSpeed()*g_Config.m_SvRoundWarmUp;
+        m_Warmup--;
         if(!m_Warmup)
             StartFight();
     }
@@ -785,11 +960,8 @@ void CGameControllerArena::Tick()
         if(Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*5)
         {
             for(int i = 0; i < MAX_OPPONENTS; i++)
-                if(m_apOpponents[i] && m_apOpponents[i]->m_Losses)
-                {
+                if(m_apOpponents[i])
                     m_pController->ChangeArena(m_apOpponents[i]->GetCID(), -1);
-                }
-            StartRound();
         }
     }
 

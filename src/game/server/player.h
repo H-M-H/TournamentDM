@@ -80,9 +80,9 @@ public:
 	int m_LastActionTick;
 	int m_TeamChangeTick;
 
+    int m_TID; // ID for tourney: -1 == none
+    bool m_Participating;
     int m_Arena;
-    int m_Victories;
-    int m_Losses;
 
 	struct
 	{
