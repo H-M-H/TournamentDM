@@ -72,6 +72,7 @@ MACRO_CONFIG_INT(SvSpamprotection, sv_spamprotection, 1, 0, 1, CFGFLAG_SERVER, "
 MACRO_CONFIG_INT(SvRespawnDelayTDM, sv_respawn_delay_tdm, 3, 0, 10, CFGFLAG_SERVER, "Time needed to respawn after death in tdm gametype")
 
 MACRO_CONFIG_INT(SvArenas, sv_arenas, 1, 0, 1, CFGFLAG_SERVER, "Wether to use arenas for the fights, changing restarts game")
+MACRO_CONFIG_INT(SvBracket, sv_bracket, 1, 1, 3, CFGFLAG_SERVER, "bracket mode: 1:determine fights by jointime 2:by fighttime 3:purely random")
 MACRO_CONFIG_INT(SvStartWarmUp, sv_start_warmup, 90, 5, 1000, CFGFLAG_SERVER, "Time to wait until tourney starts")
 MACRO_CONFIG_INT(SvRoundWarmUp, sv_round_warmup, 10, 0, 500, CFGFLAG_SERVER, "Time between rounds")
 MACRO_CONFIG_INT(SvColorize, sv_colorize, 1, 0, 1, CFGFLAG_SERVER, "Colorize tees in arenas")
@@ -79,7 +80,7 @@ MACRO_CONFIG_INT(SvClipPickups, sv_clippickups, 0, 0, 1, CFGFLAG_SERVER, "Clips 
 
 MACRO_CONFIG_INT(SvSpectatorSlots, sv_spectator_slots, 0, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Number of slots to reserve for spectators")
 MACRO_CONFIG_INT(SvTeambalanceTime, sv_teambalance_time, 1, 0, 1000, CFGFLAG_SERVER, "How many minutes to wait before autobalancing teams")
-MACRO_CONFIG_INT(SvInactiveKickTime, sv_inactivekick_time, 3, 0, 1000, CFGFLAG_SERVER, "How many minutes to wait before taking care of inactive players")
+MACRO_CONFIG_INT(SvInactiveKickTime, sv_inactivekick_time, 0, 0, 1000, CFGFLAG_SERVER, "How many minutes to wait before taking care of inactive players")
 MACRO_CONFIG_INT(SvInactiveKick, sv_inactivekick, 1, 0, 2, CFGFLAG_SERVER, "How to deal with inactive players (0=move to spectator, 1=move to free spectator slot/kick, 2=kick)")
 
 MACRO_CONFIG_INT(SvStrictSpectateMode, sv_strict_spectate_mode, 0, 0, 1, CFGFLAG_SERVER, "Restricts information in spectator mode")

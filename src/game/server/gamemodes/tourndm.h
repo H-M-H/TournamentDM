@@ -80,6 +80,9 @@ private:
 
     // wether odd tees are handled atm
     bool m_HandlingOdds;
+
+    // stores g_Config.m_SvBracket for every tourney
+    int m_BracketMode;
 };
 
 

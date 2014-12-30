@@ -167,13 +167,14 @@ void CGameControllerTournDM::Tick()
 
     for(int i = 0; i < NUM_ARENAS; i++)
     {
+        GameServer()->m_World.m_ArenaResetRequested[i] = Arena(i)->m_ResetRequested;
+        GameServer()->m_World.m_ArenaPaused[i] = Arena(i)->m_Paused;
+
         // no players ? --> no tick !
         if(!m_apArenas[i]->m_NumPlayers)
             continue;
 
         m_apArenas[i]->Tick();
-        GameServer()->m_World.m_ArenaResetRequested[i] = Arena(i)->m_ResetRequested;
-        GameServer()->m_World.m_ArenaPaused[i] = Arena(i)->m_Paused;
     }
 
     if(!GameServer()->m_World.m_Paused)
@@ -193,7 +194,8 @@ void CGameControllerTournDM::Tick()
         }
         else
         {
-            HandleBracket();
+            if(m_NumActiveParticipants > 1)
+                HandleBracket();
         }
     }
 
@@ -216,67 +218,125 @@ void CGameControllerTournDM::Tick()
 
 void CGameControllerTournDM::HandleBracket()
 {
-    if(m_HandlingOdds)
+    switch (m_BracketMode)
     {
-        if(m_NumMatches)
-            m_HandlingOdds = false;
-        return;
-    }
-
-    // iterate through all tees and check wether they are ready for next fight
-    for(int i = 0; i < m_NumParticipants; i++)
+    case 1:
+    case 3:
     {
-        if(m_apTBInfo[i]->m_TourneyState != (TOURN_PARTICIPATING|TOURN_DEFEATED))
+        if(m_HandlingOdds)
         {
-            // search partner(s)   2^victories = sum(2^nextplayers[i]->victories) ---> need to fight
-            int MagicNumber = 0;
-            for(int j = i + 1; j < m_NumParticipants; j++)
-            {
-                if(m_apTBInfo[j]->m_TourneyState != (TOURN_PARTICIPATING|TOURN_DEFEATED))
-                    MagicNumber += 1 << m_apTBInfo[j]->m_Victories;
+            if(m_NumMatches)
+                m_HandlingOdds = false;
+            return;
+        }
 
-                if(MagicNumber == 1 << m_apTBInfo[i]->m_Victories)
+        // iterate through all tees and check wether they are ready for next fight
+        for(int i = 0; i < m_NumParticipants; i++)
+        {
+            if(m_apTBInfo[i]->m_TourneyState != (TOURN_PARTICIPATING|TOURN_DEFEATED))
+            {
+                // search partner(s)   2^victories = sum(2^nextplayers[i]->victories) ---> need to fight
+                int MagicNumber = 0;
+                for(int j = i + 1; j < m_NumParticipants; j++)
                 {
-                    if(m_apTBInfo[i]->m_Victories == m_apTBInfo[j]->m_Victories && m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING) && m_apTBInfo[j]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING))
-                        for(int n = 0; n < NUM_ARENAS; n++)
-                            if(!Arena(n)->m_NumPlayers && m_aActiveArenas[n])
-                            {
-                                if(m_apBracketPlayers[i] && m_apBracketPlayers[j])
+                    if(m_apTBInfo[j]->m_TourneyState != (TOURN_PARTICIPATING|TOURN_DEFEATED))
+                        MagicNumber += 1 << m_apTBInfo[j]->m_Victories;
+
+                    if(MagicNumber == 1 << m_apTBInfo[i]->m_Victories)
+                    {
+                        if(m_apTBInfo[i]->m_Victories == m_apTBInfo[j]->m_Victories && m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING) && m_apTBInfo[j]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING))
+                            for(int n = 0; n < NUM_ARENAS; n++)
+                                if(!Arena(n)->m_NumPlayers && m_aActiveArenas[n])
                                 {
-                                    if(m_apBracketPlayers[i]->m_Arena == -1 && m_apBracketPlayers[j]->m_Arena == -1)
+                                    if(m_apBracketPlayers[i] && m_apBracketPlayers[j])
                                     {
-                                        ChangeArena(m_apBracketPlayers[i]->GetCID(), n);
-                                        ChangeArena(m_apBracketPlayers[j]->GetCID(), n);
+                                        if(m_apBracketPlayers[i]->m_Arena == -1 && m_apBracketPlayers[j]->m_Arena == -1)
+                                        {
+                                            ChangeArena(m_apBracketPlayers[i]->GetCID(), n);
+                                            ChangeArena(m_apBracketPlayers[j]->GetCID(), n);
+                                        }
                                     }
+                                    else if(m_apBracketPlayers[i] || m_apBracketPlayers[j])
+                                    {
+                                        if(m_apBracketPlayers[i] && m_apBracketPlayers[i]->m_Arena == -1)
+                                            ChangeArena(m_apBracketPlayers[i]->GetCID(), n);
+                                        else if(m_apBracketPlayers[j] && m_apBracketPlayers[j]->m_Arena == -1)
+                                            ChangeArena(m_apBracketPlayers[j]->GetCID(), n);
+                                    }
+                                    else
+                                    {
+                                        m_apTBInfo[i]->m_Victories++;
+                                        m_apTBInfo[j]->m_Losses++;
+                                        m_apTBInfo[j]->m_TourneyState = (TOURN_PARTICIPATING|TOURN_DEFEATED);
+                                        m_NumActiveParticipants--;
+                                        m_NumMatches++;
+                                    }
+                                    i = j+1;
+                                    break;
                                 }
-                                else if(m_apBracketPlayers[i] || m_apBracketPlayers[j])
-                                {
-                                    if(m_apBracketPlayers[i] && m_apBracketPlayers[i]->m_Arena == -1)
-                                        ChangeArena(m_apBracketPlayers[i]->GetCID(), n);
-                                    else if(m_apBracketPlayers[j] && m_apBracketPlayers[j]->m_Arena == -1)
-                                        ChangeArena(m_apBracketPlayers[j]->GetCID(), n);
-                                }
-                                else
-                                {
-                                    m_apTBInfo[i]->m_Victories++;
-                                    m_apTBInfo[j]->m_Losses++;
-                                    m_apTBInfo[j]->m_TourneyState = (TOURN_PARTICIPATING|TOURN_DEFEATED);
-                                    m_NumActiveParticipants--;
-                                    m_NumMatches++;
-                                }
-                                i = j+1;
-                                break;
-                            }
-                    break;
+                        break;
+                    }
                 }
             }
         }
     }
+    case 2:
+    {
+        int minVictories = 4;
+        for(int Victories = 0; Victories <= 4; Victories++)
+        {
+            int WaitingID = -1;
+            for(int i = 0; i < m_NumParticipants; i++)
+            {
+                if(m_apBracketPlayers[i] && m_apTBInfo[i]->m_Victories == Victories && m_apTBInfo[i]->m_TourneyState != (TOURN_PARTICIPATING|TOURN_DEFEATED))
+                    if(Victories < minVictories)
+                        minVictories = Victories;
 
+                if(m_apBracketPlayers[i] && m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING) && m_apBracketPlayers[i]->m_Arena == -1)
+                {
+                    if(m_apTBInfo[i]->m_Victories == Victories)
+                    {
+                        if(WaitingID == -1)
+                            WaitingID = i;
+                        else
+                        {
+                            for(int n = 0; n < NUM_ARENAS; n++)
+                                if(!Arena(n)->m_NumPlayers && m_aActiveArenas[n])
+                                {
+                                    ChangeArena(m_apBracketPlayers[i]->GetCID(), n);
+                                    ChangeArena(m_apBracketPlayers[WaitingID]->GetCID(), n);
+                                    break;
+                                }
+                            WaitingID = -1;
+                        }
+                    }
+                }
+            }
+        }
+
+        int NumPlayers = 0;
+        int ID = -1;
+
+        for(int i = 0; i < m_NumParticipants; i++)
+            if(m_apBracketPlayers[i] && m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING))
+            {
+                if(m_apTBInfo[i]->m_Victories == minVictories)
+                {
+                    NumPlayers++;
+                    ID = i;
+                }
+            }
+        if(NumPlayers == 1)
+            m_apTBInfo[ID]->m_Victories++;
+    }
+    }
 }
 
 void CGameControllerTournDM::HandleOddPlayers()
 {
+    if(m_BracketMode != 1 && m_BracketMode != 3)
+        return;
+
     int n = 0;
     for(int i = 2; i <= m_NumParticipants; i *= 2)
         n++;
@@ -317,6 +377,10 @@ bool CGameControllerTournDM::CanSpawn(int Team, vec2 *pOutPos, int CID)
 
     // spectators can't spawn
     if(Team == TEAM_SPECTATORS)
+        return false;
+
+    // cant spawn if game is over
+    if(m_GameOverTick != -1)
         return false;
 
     if(!g_Config.m_SvArenas && GameServer()->m_apPlayers[CID]->m_Arena == -1)
@@ -509,22 +573,24 @@ void CGameControllerTournDM::DoWincheck()
     {
        if(m_NumActiveParticipants == 1)
        {
-           int P = -1;
-           for(int i = 0; i < MAX_CLIENTS; i++)
-               if(m_apBracketPlayers[i] && m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING))
+           for(int i = 0; i < m_NumParticipants; i++)
+               if(m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING))
                {
-                   P = i;
-                   break;
+                   if(m_apBracketPlayers[i] && m_apBracketPlayers[i]->m_Arena == -1)
+                   {
+                       char aBuf[256];
+                       str_format(aBuf, sizeof(aBuf), "'%s' wins the tournament !", Server()->ClientName(m_apBracketPlayers[i]->GetCID()));
+                       GameServer()->SendChatTarget(-1, aBuf);
+                       GameServer()->SendChatTarget(-1, "Congratulations !");
+                       EndRound();
+                       break;
+                   }
+                   else if(!m_apBracketPlayers[i])
+                   {
+                       EndRound();
+                       break;
+                   }
                }
-
-           if(P != -1)
-           {
-               char aBuf[256];
-               str_format(aBuf, sizeof(aBuf), "'%s' wins the tournament !", Server()->ClientName(m_apBracketPlayers[P]->GetCID()));
-               GameServer()->SendChatTarget(-1, aBuf);
-               GameServer()->SendChatTarget(-1, "Congratulations !");
-           }
-           EndRound();
        }
     }
 }
@@ -532,6 +598,29 @@ void CGameControllerTournDM::DoWincheck()
 void CGameControllerTournDM::StartTourney()
 {
     ResetGame();
+
+    m_BracketMode = g_Config.m_SvBracket;
+
+    // random you want random here you go
+    if(m_BracketMode == 3)
+    {
+        int randomArray[MAX_CLIENTS];
+        for (int i = 0; i < MAX_CLIENTS; i++)
+            randomArray[i] = i;
+
+        for (int i = 0; i < MAX_CLIENTS - 1; i++)
+        {
+            int j = i + rand() / (RAND_MAX / (MAX_CLIENTS - i) + 1);
+            int t = randomArray[j];
+            randomArray[j] = randomArray[i];
+            randomArray[i] = t;
+        }
+
+        int n = 0;
+        for(int i = 0; i < MAX_CLIENTS; i++)
+            if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->m_Participating)
+                GameServer()->m_apPlayers[i]->m_TID = randomArray[n++];
+    }
 
     // correct TIDs
     for(int n = 0; n < m_NumParticipants; n++)
@@ -623,6 +712,12 @@ void CGameControllerTournDM::EndRound()
                 GameServer()->m_apPlayers[i]->m_Score = m_apTBInfo[GameServer()->m_apPlayers[i]->m_TID]->m_Victories;
             else
                 GameServer()->m_apPlayers[i]->m_Score = -1000;
+
+            if(GameServer()->m_apPlayers[i]->m_Participating)
+                GameServer()->m_apPlayers[i]->SetTeam(0, false);
+            else
+                GameServer()->m_apPlayers[i]->SetTeam(TEAM_SPECTATORS, false);
+
         }
     }
 }
@@ -965,6 +1060,7 @@ void CGameControllerArena::Tick()
             for(int i = 0; i < MAX_OPPONENTS; i++)
                 if(m_apOpponents[i])
                     m_pController->ChangeArena(m_apOpponents[i]->GetCID(), -1);
+            StartRound();
         }
     }
 
