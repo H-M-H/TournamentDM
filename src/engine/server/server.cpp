@@ -1100,9 +1100,9 @@ void CServer::SendServerInfo(const NETADDR *pAddr, int Token)
 	p.AddString(aBuf, 6);
 
 	p.AddString(GameServer()->Version(), 32);
-    if(str_comp_nocase(GameServer()->GameType(), "TournDM") == 0)
+    if(str_comp_nocase(GameServer()->GameType(), "TournDM") == 0 && g_Config.m_SvStatus)
     {
-        str_format(aBuf, sizeof(aBuf), "%s - %s", g_Config.m_SvName, GameServer()->GetTourneyState());
+        str_format(aBuf, sizeof(aBuf), "%s - [%s]", g_Config.m_SvName, GameServer()->GetTourneyState());
         p.AddString(aBuf, 64);
     }
     else

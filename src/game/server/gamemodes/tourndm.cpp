@@ -886,6 +886,9 @@ void CGameControllerArena::StartFight()
 
 void CGameControllerArena::EndRound(int winnerID, bool Left)
 {
+    if(!m_RoundRunning)
+        return;
+
     m_RoundRunning = false;
 
     char aBuf[256];
