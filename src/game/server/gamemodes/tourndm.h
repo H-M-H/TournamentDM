@@ -30,7 +30,7 @@ public:
     void HandleOddPlayers();
     void StartTourney();
 
-    const char *GetTourneyState();
+    void AddTourneyState(char* Name, int size);
 
     // puts the players into tourney
     void SignIn(int CID);
@@ -83,6 +83,8 @@ private:
 
     // stores g_Config.m_SvBracket for every tourney
     int m_BracketMode;
+
+    int* m_aArenaColors[8];
 };
 
 

@@ -708,6 +708,26 @@ void CGameControllerTournDM::StartTourney()
 
     m_NumActiveParticipants = m_NumParticipants;
 
+    m_aArenaColors[0] = &g_Config.m_SvArenaColor1;
+    m_aArenaColors[1] = &g_Config.m_SvArenaColor2;
+    m_aArenaColors[2] = &g_Config.m_SvArenaColor3;
+    m_aArenaColors[3] = &g_Config.m_SvArenaColor4;
+    m_aArenaColors[4] = &g_Config.m_SvArenaColor5;
+    m_aArenaColors[5] = &g_Config.m_SvArenaColor6;
+    m_aArenaColors[6] = &g_Config.m_SvArenaColor7;
+    m_aArenaColors[7] = &g_Config.m_SvArenaColor8;
+
+    if(g_Config.m_SvRandColor)
+    {
+        for (int i = 0; i < NUM_ARENAS - 1; i++)
+        {
+            int j = i + rand() / (RAND_MAX / (NUM_ARENAS - i) + 1);
+            int* t = m_aArenaColors[j];
+            m_aArenaColors[j] = m_aArenaColors[i];
+            m_aArenaColors[i] = t;
+        }
+    }
+
     GameServer()->SendBroadcast("Tournament started, Good Luck !", -1);
 
     // get rid of odd players and let them fight first
@@ -804,12 +824,9 @@ void CGameControllerTournDM::OnPlayerInfoChange(class CPlayer *pP)
         return;
     }
 
-                      //black // white // red // orange // green // light blue // blue // violett
-    const int aArenaColors[8] = {0, 255, 65387, 2031418, 5504826, 8126266, 10223467, 12582714};
-
     pP->m_TeeInfos.m_UseCustomColor = 1;
-    pP->m_TeeInfos.m_ColorBody = aArenaColors[pP->m_Arena];
-    pP->m_TeeInfos.m_ColorFeet = aArenaColors[pP->m_Arena];
+    pP->m_TeeInfos.m_ColorBody = *m_aArenaColors[pP->m_Arena];
+    pP->m_TeeInfos.m_ColorFeet = *m_aArenaColors[pP->m_Arena];
 }
 
 void CGameControllerTournDM::Snap(int SnappingClient)
@@ -878,9 +895,9 @@ void CGameControllerTournDM::Snap(int SnappingClient)
     pGameInfoObj->m_RoundCurrent = m_RoundCount+1;
 }
 
-const char* CGameControllerTournDM::GetTourneyState()
+void CGameControllerTournDM::AddTourneyState(char* Name, int size)
 {
-    char aBuf[32];
+    char aBuf[64];
     if(!m_TourneyStarted && m_NumParticipants < 2)
         str_format(aBuf, sizeof(aBuf), " - [waiting for players]");
     else if (!m_TourneyStarted && m_NumParticipants >= 2)
@@ -889,12 +906,8 @@ const char* CGameControllerTournDM::GetTourneyState()
         str_format(aBuf, sizeof(aBuf), " - [%d players left]", m_NumActiveParticipants);
     else if (m_TourneyStarted && m_GameOverTick != -1)
         str_format(aBuf, sizeof(aBuf), " - [restarting]");
-    else
-        str_format(aBuf, sizeof(aBuf), "");
 
-
-    const char* r = aBuf;
-    return r;
+    str_append(Name, aBuf, size);
 }
 
 // /////////////////////////////////////////////////////////////// //

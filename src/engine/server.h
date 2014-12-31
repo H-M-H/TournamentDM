@@ -97,7 +97,7 @@ public:
 	virtual const char *Version() = 0;
 	virtual const char *NetVersion() = 0;
 
-    virtual const char *GetTourneyState() = 0;
+    virtual void AddTourneyState(char* Name, int size) = 0;
 };
 
 extern IGameServer *CreateGameServer();

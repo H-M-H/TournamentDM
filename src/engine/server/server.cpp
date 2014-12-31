@@ -1,6 +1,8 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 
+#include <time.h>
+
 #include <base/math.h>
 #include <base/system.h>
 
@@ -1101,7 +1103,8 @@ void CServer::SendServerInfo(const NETADDR *pAddr, int Token)
 
 	p.AddString(GameServer()->Version(), 32);
 
-    str_format(aBuf, sizeof(aBuf), "%s%s", g_Config.m_SvName, GameServer()->GetTourneyState());
+    str_format(aBuf, sizeof(aBuf), "%s", g_Config.m_SvName);
+    GameServer()->AddTourneyState(aBuf, 64);
     p.AddString(aBuf, 64);
 
 	p.AddString(GetMapName(), 32);
@@ -1718,6 +1721,9 @@ int main(int argc, const char **argv) // ignore_convention
 	pConfig->RestoreStrings();
 
 	pEngine->InitLogfile();
+
+    // intialize random
+    srand(time(NULL));
 
 	// run the server
 	dbg_msg("server", "starting...");

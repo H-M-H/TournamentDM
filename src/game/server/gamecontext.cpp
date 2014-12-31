@@ -1730,14 +1730,10 @@ const char *CGameContext::GameType() { return m_pController && m_pController->m_
 const char *CGameContext::Version() { return GAME_VERSION; }
 const char *CGameContext::NetVersion() { return GAME_NETVERSION; }
 
-const char *CGameContext::GetTourneyState()
+void CGameContext::AddTourneyState(char *Name, int size)
 {
     if(m_pController->m_GameType == IGameController::GAMETYPE_TOURNDM)
-    {
-        return ((CGameControllerTournDM*)m_pController)->GetTourneyState();
-    }
-    else
-        return "";
+        ((CGameControllerTournDM*)m_pController)->AddTourneyState(Name, size);
 }
 
 IGameServer *CreateGameServer() { return new CGameContext; }
