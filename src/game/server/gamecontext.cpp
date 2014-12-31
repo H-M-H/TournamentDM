@@ -1600,7 +1600,11 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
     else if(str_comp(g_Config.m_SvGametype, "tdm") == 0)
         m_pController = new CGameControllerTDM(this);
     else if(str_comp(g_Config.m_SvGametype, "tourndm") == 0)
-        m_pController = new CGameControllerTournDM(this);
+        m_pController = new CGameControllerTournDM(this, IGameController::SUBTYPE_VANILLA);
+    else if(str_comp(g_Config.m_SvGametype, "itourndm") == 0)
+        m_pController = new CGameControllerTournDM(this, IGameController::SUBTYPE_INSTAGIB);
+    else if(str_comp(g_Config.m_SvGametype, "gtourndm") == 0)
+        m_pController = new CGameControllerTournDM(this, IGameController::SUBTYPE_GRENADE);
 	else
 		m_pController = new CGameControllerDM(this);
 
@@ -1733,7 +1737,7 @@ const char *CGameContext::GetTourneyState()
         return ((CGameControllerTournDM*)m_pController)->GetTourneyState();
     }
     else
-        return '\0';
+        return "";
 }
 
 IGameServer *CreateGameServer() { return new CGameContext; }

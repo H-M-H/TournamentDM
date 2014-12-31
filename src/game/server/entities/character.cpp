@@ -58,8 +58,28 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_EmoteStop = -1;
 	m_LastAction = -1;
 	m_LastNoAmmoSound = -1;
-	m_ActiveWeapon = WEAPON_GUN;
-	m_LastWeapon = WEAPON_HAMMER;
+
+    switch (GameServer()->m_pController->m_SubType)
+    {
+    case IGameController::SUBTYPE_VANILLA:
+    {
+        m_ActiveWeapon = WEAPON_GUN;
+        m_LastWeapon = WEAPON_HAMMER;
+    }
+        break;
+    case IGameController::SUBTYPE_INSTAGIB:
+    {
+        m_ActiveWeapon = WEAPON_RIFLE;
+        m_LastWeapon = WEAPON_RIFLE;
+    }
+        break;
+    case IGameController::SUBTYPE_GRENADE:
+    {
+        m_ActiveWeapon = WEAPON_GRENADE;
+        m_LastWeapon = WEAPON_GRENADE;
+    }
+    }
+
 	m_QueuedWeapon = -1;
 
     m_TileIndex = 0;
@@ -752,6 +772,43 @@ bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
 
 	if(GameServer()->m_pController->IsFriendlyFire(m_pPlayer->GetCID(), From) && !g_Config.m_SvTeamdamage)
 		return false;
+
+    if(GameServer()->m_pController->m_SubType == IGameController::SUBTYPE_INSTAGIB || GameServer()->m_pController->m_SubType == IGameController::SUBTYPE_GRENADE)
+    {
+        // no selfdamage
+        if(From == m_pPlayer->GetCID())
+            return false;
+
+        if(GameServer()->m_pController->m_SubType == IGameController::SUBTYPE_GRENADE && Dmg < g_Config.m_SvExplosionKillDmg)
+            return false;
+
+        // do damage Hit sound
+        if(From >= 0 && From != m_pPlayer->GetCID() && GameServer()->m_apPlayers[From])
+        {
+            int Mask = CmaskOne(From);
+            for(int i = 0; i < MAX_CLIENTS; i++)
+            {
+                if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS && GameServer()->m_apPlayers[i]->m_SpectatorID == From)
+                    Mask |= CmaskOne(i);
+            }
+            GameServer()->CreateSound(GameServer()->m_apPlayers[From]->m_ViewPos, SOUND_HIT, Mask&GameServer()->CmaskArena(m_Arena));
+        }
+
+        Die(From, Weapon);
+
+        // set attacker's face to happy (taunt!)
+        if (From >= 0 && From != m_pPlayer->GetCID() && GameServer()->m_apPlayers[From])
+        {
+            CCharacter *pChr = GameServer()->m_apPlayers[From]->GetCharacter();
+            if (pChr)
+            {
+                pChr->m_EmoteType = EMOTE_HAPPY;
+                pChr->m_EmoteStop = Server()->Tick() + Server()->TickSpeed();
+            }
+        }
+
+        return false;
+    }
 
 	// m_pPlayer only inflicts half damage on self
 	if(From == m_pPlayer->GetCID())

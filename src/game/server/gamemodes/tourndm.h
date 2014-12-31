@@ -7,7 +7,7 @@
 class CGameControllerTournDM : public IGameController
 {
 public:
-    CGameControllerTournDM(class CGameContext *pGameServer);
+    CGameControllerTournDM(class CGameContext *pGameServer, int Subtype);
     virtual ~CGameControllerTournDM();
     virtual void Tick();
     virtual void PostReset();

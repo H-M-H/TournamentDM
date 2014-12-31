@@ -16,11 +16,29 @@ enum
     TOURN_DEFEATED=4
 };
 
-CGameControllerTournDM::CGameControllerTournDM(class CGameContext *pGameServer)
+CGameControllerTournDM::CGameControllerTournDM(class CGameContext *pGameServer, int Subtype)
 : IGameController(pGameServer)
 {
-    m_pGameType = "TournDM";
     m_GameType = GAMETYPE_TOURNDM;
+    m_SubType = Subtype;
+
+    switch (m_SubType)
+    {
+    case SUBTYPE_VANILLA:
+        m_pGameType = "TournDM";
+        break;
+    case SUBTYPE_INSTAGIB:
+        m_pGameType = "iTournDM";
+        break;
+    case SUBTYPE_GRENADE:
+        m_pGameType = "gTournDM";
+        break;
+    default:
+    {
+        m_pGameType = "TournDM";
+        m_SubType = SUBTYPE_VANILLA;
+    }
+    }
 
     m_OldArenaMode = g_Config.m_SvArenas;
 
@@ -280,6 +298,7 @@ void CGameControllerTournDM::HandleBracket()
             }
         }
     }
+        break;
     case 2:
     {
         int minVictories = 4;
@@ -346,7 +365,7 @@ void CGameControllerTournDM::HandleOddPlayers()
     int LuckyPlayers = (m_NumParticipants - OddPlayers) % m_NumParticipants;
     m_HandlingOdds = LuckyPlayers;
 
-    int LastFreeArena = 0;
+    int LastFreeArena = -1;
     for(int i = 0; i < LuckyPlayers; i++)
     {
         // all those luckyplayers get an Arena without enemies and thus a free win
@@ -475,48 +494,51 @@ bool CGameControllerTournDM::OnEntity(int Index, vec2 Pos)
         m_aaSpawnPoints[7][m_aNumSpawnPoints[7]++] = Pos;
     else if(Index == ENTITY_SPAWN_7)
         m_aaSpawnPoints[8][m_aNumSpawnPoints[8]++] = Pos;
-    else if(Index == ENTITY_ARMOR)
-        Type = POWERUP_ARMOR;
-    else if(Index == ENTITY_HEALTH)
-        Type = POWERUP_HEALTH;
-    else if(Index == ENTITY_WEAPON_SHOTGUN)
+    else if(m_SubType == SUBTYPE_VANILLA)
     {
-        Type = POWERUP_WEAPON;
-        SubType = WEAPON_SHOTGUN;
-    }
-    else if(Index == ENTITY_WEAPON_GRENADE)
-    {
-        Type = POWERUP_WEAPON;
-        SubType = WEAPON_GRENADE;
-    }
-    else if(Index == ENTITY_WEAPON_RIFLE)
-    {
-        Type = POWERUP_WEAPON;
-        SubType = WEAPON_RIFLE;
-    }
-    else if(Index == ENTITY_POWERUP_NINJA && g_Config.m_SvPowerups)
-    {
-        Type = POWERUP_NINJA;
-        SubType = WEAPON_NINJA;
-    }
-
-    if(Type != -1)
-    {
-        if(g_Config.m_SvArenas)
+        if(Index == ENTITY_ARMOR)
+            Type = POWERUP_ARMOR;
+        else if(Index == ENTITY_HEALTH)
+            Type = POWERUP_HEALTH;
+        else if(Index == ENTITY_WEAPON_SHOTGUN)
         {
-            CPickup *pPickup = new CPickup(&GameServer()->m_World, Type, SubType, -2);
-            pPickup->m_Pos = Pos;
+            Type = POWERUP_WEAPON;
+            SubType = WEAPON_SHOTGUN;
         }
-        else
+        else if(Index == ENTITY_WEAPON_GRENADE)
         {
-            for(int i = 0; i < 8; i++)
+            Type = POWERUP_WEAPON;
+            SubType = WEAPON_GRENADE;
+        }
+        else if(Index == ENTITY_WEAPON_RIFLE)
+        {
+            Type = POWERUP_WEAPON;
+            SubType = WEAPON_RIFLE;
+        }
+        else if(Index == ENTITY_POWERUP_NINJA && g_Config.m_SvPowerups)
+        {
+            Type = POWERUP_NINJA;
+            SubType = WEAPON_NINJA;
+        }
+
+        if(Type != -1)
+        {
+            if(g_Config.m_SvArenas)
             {
-                CPickup *pPickup = new CPickup(&GameServer()->m_World, Type, SubType, i);
+                CPickup *pPickup = new CPickup(&GameServer()->m_World, Type, SubType, -2);
                 pPickup->m_Pos = Pos;
             }
+            else
+            {
+                for(int i = 0; i < 8; i++)
+                {
+                    CPickup *pPickup = new CPickup(&GameServer()->m_World, Type, SubType, i);
+                    pPickup->m_Pos = Pos;
+                }
+            }
+            UpdateArenaStates();
+            return true;
         }
-        UpdateArenaStates();
-        return true;
     }
 
     UpdateArenaStates();
@@ -552,7 +574,37 @@ int CGameControllerTournDM::OnCharacterDeath(class CCharacter *pVictim, class CP
 
 void CGameControllerTournDM::OnCharacterSpawn(CCharacter *pChr)
 {
-    IGameController::OnCharacterSpawn(pChr);
+    switch (m_SubType)
+    {
+    case SUBTYPE_VANILLA:
+    {
+        // default health
+        pChr->IncreaseHealth(10);
+
+        // give default weapons
+        pChr->GiveWeapon(WEAPON_HAMMER, -1);
+        pChr->GiveWeapon(WEAPON_GUN, 10);
+    }
+        break;
+    case SUBTYPE_INSTAGIB:
+    {
+        // default health
+        pChr->IncreaseHealth(10);
+
+        // give default laser
+        pChr->GiveWeapon(WEAPON_RIFLE, -1);
+    }
+        break;
+    case SUBTYPE_GRENADE:
+    {
+        // default health
+        pChr->IncreaseHealth(10);
+
+        // give default grenade
+        pChr->GiveWeapon(WEAPON_GRENADE, -1);
+    }
+    }
+
     if(!pChr->GetPlayer()->m_Participating)
         pChr->GetPlayer()->m_Score = -1000;
     else if(pChr->GetPlayer()->m_Arena == -1)
@@ -830,13 +882,13 @@ const char* CGameControllerTournDM::GetTourneyState()
 {
     char aBuf[32];
     if(!m_TourneyStarted && m_NumParticipants < 2)
-        str_format(aBuf, sizeof(aBuf), "waiting for players");
+        str_format(aBuf, sizeof(aBuf), " - [waiting for players]");
     else if (!m_TourneyStarted && m_NumParticipants >= 2)
-        str_format(aBuf, sizeof(aBuf), "starting in %d seconds", m_Warmup/Server()->TickSpeed());
+        str_format(aBuf, sizeof(aBuf), " - [starting in %d seconds]", m_Warmup/Server()->TickSpeed());
     else if (m_TourneyStarted && m_GameOverTick == -1)
-        str_format(aBuf, sizeof(aBuf), "%d players left", m_NumActiveParticipants);
+        str_format(aBuf, sizeof(aBuf), " - [%d players left]", m_NumActiveParticipants);
     else if (m_TourneyStarted && m_GameOverTick != -1)
-        str_format(aBuf, sizeof(aBuf), "restarting");
+        str_format(aBuf, sizeof(aBuf), " - [restarting]");
     else
         str_format(aBuf, sizeof(aBuf), "");
 

@@ -76,6 +76,14 @@ public:
         GAMETYPE_TOURNDM=5
     };
 
+    int m_SubType;
+    enum
+    {
+        SUBTYPE_VANILLA=0,
+        SUBTYPE_INSTAGIB=1,
+        SUBTYPE_GRENADE=2
+    };
+
 	bool IsTeamplay() const;
 	bool IsGameOver() const { return m_GameOverTick != -1; }
 

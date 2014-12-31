@@ -33,6 +33,8 @@ IGameController::IGameController(class CGameContext *pGameServer)
 	m_aNumSpawnPoints[0] = 0;
 	m_aNumSpawnPoints[1] = 0;
     m_aNumSpawnPoints[2] = 0;
+
+    m_SubType = SUBTYPE_VANILLA;
 }
 
 IGameController::~IGameController()

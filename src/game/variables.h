@@ -65,7 +65,7 @@ MACRO_CONFIG_INT(SvRoundSwap, sv_round_swap, 1, 0, 1, CFGFLAG_SERVER, "Swap team
 MACRO_CONFIG_INT(SvPowerups, sv_powerups, 0, 0, 1, CFGFLAG_SERVER, "Allow powerups like ninja")
 MACRO_CONFIG_INT(SvScorelimit, sv_scorelimit, 10, 0, 1000, CFGFLAG_SERVER, "Score limit (0 disables)")
 MACRO_CONFIG_INT(SvTimelimit, sv_timelimit, 5, 0, 1000, CFGFLAG_SERVER, "Time limit in minutes (0 disables)")
-MACRO_CONFIG_STR(SvGametype, sv_gametype, 32, "tourndm", CFGFLAG_SERVER, "Game type (dm, tdm, ctf, tourndm)")
+MACRO_CONFIG_STR(SvGametype, sv_gametype, 32, "tourndm", CFGFLAG_SERVER, "Game type (dm, tdm, ctf, tourndm, itourndm, gtourndm)")
 MACRO_CONFIG_INT(SvTournamentMode, sv_tournament_mode, 0, 0, 1, CFGFLAG_SERVER, "Tournament mode. When enabled, players joins the server as spectator")
 MACRO_CONFIG_INT(SvSpamprotection, sv_spamprotection, 1, 0, 1, CFGFLAG_SERVER, "Spam protection")
 
@@ -77,6 +77,7 @@ MACRO_CONFIG_INT(SvStartWarmUp, sv_start_warmup, 90, 5, 1000, CFGFLAG_SERVER, "T
 MACRO_CONFIG_INT(SvRoundWarmUp, sv_round_warmup, 10, 0, 500, CFGFLAG_SERVER, "Time between rounds")
 MACRO_CONFIG_INT(SvColorize, sv_colorize, 1, 0, 1, CFGFLAG_SERVER, "Colorize tees in arenas")
 MACRO_CONFIG_INT(SvClipPickups, sv_clippickups, 0, 0, 1, CFGFLAG_SERVER, "Clips Pickups for spectators, should be used if there are many")
+MACRO_CONFIG_INT(SvExplosionKillDmg, sv_explosion_kill_dmg, 4, 0, 6, CFGFLAG_SERVER, "minimum damage required for a kill on grenade mode")
 
 MACRO_CONFIG_INT(SvSpectatorSlots, sv_spectator_slots, 0, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Number of slots to reserve for spectators")
 MACRO_CONFIG_INT(SvTeambalanceTime, sv_teambalance_time, 1, 0, 1000, CFGFLAG_SERVER, "How many minutes to wait before autobalancing teams")
