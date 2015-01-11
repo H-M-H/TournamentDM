@@ -693,13 +693,21 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
                 }
                 else if (str_comp_nocase(pMsg->m_pMessage, "/gameinfo") == 0)
                 {
-                    int Victories = 0;
+                    CGameControllerTournDM* Controller = ((CGameControllerTournDM*)m_pController);
 
-                    if(m_apPlayers[ClientID]->m_Participating && ((CGameControllerTournDM*)m_pController)->m_TourneyStarted)
-                        Victories = ((CGameControllerTournDM*)m_pController)->m_aTPInfo[ClientID].m_Victories;
+                    int Victories = 0;
+                    int Fighters = Controller->m_NumParticipants;
+
+                    if(Controller->m_TourneyStarted)
+                    {
+                        if(m_apPlayers[ClientID]->m_Participating)
+                            Victories = Controller->m_aTPInfo[ClientID].m_Victories;
+
+                        Fighters = Controller->m_NumActiveParticipants;
+                    }
 
                     SendChatTarget(ClientID, "------------");
-                    str_format(aBuf, sizeof(aBuf), "current arena: %d victories: %d participants: %d left Tees: %d", m_apPlayers[ClientID]->m_Arena, Victories, ((CGameControllerTournDM*)m_pController)->m_NumParticipants, ((CGameControllerTournDM*)m_pController)->m_NumActiveParticipants);
+                    str_format(aBuf, sizeof(aBuf), "current arena: %d victories: %d participants: %d left Tees: %d", m_apPlayers[ClientID]->m_Arena, Victories, Controller->m_NumParticipants, Fighters);
                     SendChatTarget(ClientID, aBuf);
                 }
                 else if (str_comp_nocase(pMsg->m_pMessage, "/help") == 0)
@@ -715,17 +723,6 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
                     SendChatTarget(ClientID, "This mod automates 1on1 tournaments, to join the tourney use '/join'");
                     SendChatTarget(ClientID, "There can also be a zone to go in which lets you join");
                     SendChatTarget(ClientID, "To see credits write '/credits'");
-                }
-                else if (str_comp_nocase(pMsg->m_pMessage, "/tid") == 0)
-                {
-                    for(int i = 0; i < MAX_CLIENTS; i++)
-                    {
-                        if(m_apPlayers[i])
-                        {
-                            str_format(aBuf, sizeof(aBuf), "ID: %d TID: %d", i, m_apPlayers[i]->m_TID);
-                            SendChatTarget(ClientID, aBuf);
-                        }
-                    }
                 }
                 else if (str_comp_nocase(pMsg->m_pMessage, "/join") == 0)
                 {
