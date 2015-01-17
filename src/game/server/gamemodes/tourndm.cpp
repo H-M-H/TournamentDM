@@ -311,6 +311,13 @@ void CGameControllerTournDM::HandleBracket()
                     if(Victories < minVictories)
                         minVictories = Victories;
 
+                // remove player from bracket if left
+                if(!m_apBracketPlayers[i] && m_apTBInfo[i]->m_TourneyState != (TOURN_PARTICIPATING|TOURN_DEFEATED))
+                {
+                    m_apTBInfo[i]->m_TourneyState = (TOURN_PARTICIPATING|TOURN_DEFEATED);
+                    m_NumActiveParticipants--;
+                }
+
                 if(m_apBracketPlayers[i] && m_apTBInfo[i]->m_TourneyState == (TOURN_PARTICIPATING|TOURN_WAITING) && m_apBracketPlayers[i]->m_Arena == -1)
                 {
                     if(m_apTBInfo[i]->m_Victories == Victories)
