@@ -636,7 +636,7 @@ void CGameControllerTournDM::OnCharacterSpawn(CCharacter *pChr)
     }
 
 
-    if(pChr->m_Arena == -1)
+    if(pChr->m_Arena == -1 && (g_Config.m_SvWallNinja || m_SubType == SUBTYPE_VANILLA))
         pChr->GiveWeapon(WEAPON_NINJA, -1);
 
     if(!pChr->GetPlayer()->m_Participating)
