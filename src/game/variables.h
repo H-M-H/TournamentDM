@@ -74,7 +74,7 @@ MACRO_CONFIG_INT(SvRespawnDelayTDM, sv_respawn_delay_tdm, 3, 0, 10, CFGFLAG_SERV
 MACRO_CONFIG_INT(SvArenas, sv_arenas, 1, 0, 1, CFGFLAG_SERVER, "whether to use arenas for the fights, changing restarts game")
 MACRO_CONFIG_INT(SvBracket, sv_bracket, 1, 1, 3, CFGFLAG_SERVER, "bracket mode: 1:determine fights by jointime 2:by fighttime 3:purely random")
 MACRO_CONFIG_INT(SvStartWarmUp, sv_start_warmup, 90, 5, 1000, CFGFLAG_SERVER, "Time to wait until tourney starts")
-MACRO_CONFIG_INT(SvRoundWarmUp, sv_round_warmup, 10, 0, 500, CFGFLAG_SERVER, "Time between rounds")
+MACRO_CONFIG_INT(SvRoundWarmUp, sv_round_warmup, 15, 0, 500, CFGFLAG_SERVER, "Time between rounds")
 MACRO_CONFIG_INT(SvColorize, sv_colorize, 1, 0, 1, CFGFLAG_SERVER, "Colorize tees in arenas")
 MACRO_CONFIG_INT(SvClipPickups, sv_clippickups, 0, 0, 1, CFGFLAG_SERVER, "Clips Pickups for spectators, should be used if there are many")
 MACRO_CONFIG_INT(SvExplosionKillDmg, sv_explosion_kill_dmg, 4, 0, 6, CFGFLAG_SERVER, "minimum damage required for a kill on grenade mode")

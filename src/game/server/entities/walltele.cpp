@@ -56,6 +56,8 @@ void CWallTele::Snap(int SnappingClient)
           GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena == -1)))
         return;
 
+    // TODO: make it beatiful :D
+
     CNetObj_Laser *pObj1 = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID, sizeof(CNetObj_Laser)));
     if(!pObj1)
         return;
