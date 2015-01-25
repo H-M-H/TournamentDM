@@ -1709,7 +1709,7 @@ int CGameContext::CmaskArena(int Arena)
             if(m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS &&
                     m_apPlayers[SnappingClient]->m_SpectatorID != -1 &&
                     m_apPlayers[m_apPlayers[SnappingClient]->m_SpectatorID] &&
-                    m_apPlayers[m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != Arena)
+                    (m_apPlayers[m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != Arena && m_apPlayers[m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != -1))
                 continue;
         }
         else

@@ -6,6 +6,7 @@
 #include <game/server/gamecontext.h>
 #include <game/mapitems.h>
 
+#include "../entities/walltele.h"
 #include "tourndm.h"
 
 enum
@@ -501,6 +502,10 @@ bool CGameControllerTournDM::OnEntity(int Index, vec2 Pos)
         m_aaSpawnPoints[7][m_aNumSpawnPoints[7]++] = Pos;
     else if(Index == ENTITY_SPAWN_7)
         m_aaSpawnPoints[8][m_aNumSpawnPoints[8]++] = Pos;
+    else if(Index == ENTITY_WALLTELE)
+    {
+        new CWallTele(&GameServer()->m_World, Pos);
+    }
     else if(m_SubType == SUBTYPE_VANILLA)
     {
         if(Index == ENTITY_ARMOR)
@@ -591,6 +596,13 @@ void CGameControllerTournDM::OnCharacterSpawn(CCharacter *pChr)
         // give default weapons
         pChr->GiveWeapon(WEAPON_HAMMER, -1);
         pChr->GiveWeapon(WEAPON_GUN, 10);
+
+        if(pChr->m_Arena == -1)
+        {
+            pChr->GiveWeapon(WEAPON_SHOTGUN, -1);
+            pChr->GiveWeapon(WEAPON_GRENADE, -1);
+            pChr->GiveWeapon(WEAPON_RIFLE, -1);;
+        }
     }
         break;
     case SUBTYPE_INSTAGIB:

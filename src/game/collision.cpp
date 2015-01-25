@@ -49,8 +49,8 @@ void CCollision::Init(class CLayers *pLayers)
             break;
 		default:
 			m_pTiles[i].m_Index = 0;
-		}
-	}
+        }
+    }
 }
 
 int CCollision::GetTile(int x, int y)
@@ -64,6 +64,41 @@ int CCollision::GetTile(int x, int y)
 bool CCollision::IsTileSolid(int x, int y)
 {
 	return GetTile(x, y)&COLFLAG_SOLID;
+}
+
+int CCollision::GetTileFlags(vec2 Pos)
+{
+    int Nx = clamp((int)Pos.x/32, 0, m_Width-1);
+    int Ny = clamp((int)Pos.y/32, 0, m_Height-1);
+
+    return m_pTiles[Ny*m_Width+Nx].m_Flags;
+}
+
+bool CCollision::ThroughWall(vec2 Pos, vec2 Dir, vec2 *pPosOut)
+{
+    int Nx = clamp((int)Pos.x/32, 0, m_Width-1);
+    int Ny = clamp((int)Pos.y/32, 0, m_Height-1);
+
+    // find Wall
+    while(!(GetTile(Nx*32, Ny*32)&(TILE_SOLID|TILE_DEATH)))
+    {
+        Nx += Dir.x;
+        Ny += Dir.y;
+        if(abs(Nx) == abs(m_Width) || abs(Ny) == abs(m_Height))
+            return false;
+    }
+
+    // find free space
+    while(GetTile(Nx*32, Ny*32)&(TILE_SOLID|TILE_DEATH))
+    {
+        Nx += Dir.x;
+        Ny += Dir.y;
+        if(abs(Nx) == abs(m_Width) || abs(Ny) == abs(m_Height))
+            return false;
+    }
+
+    *pPosOut = vec2(Nx*32+16, Ny*32+16);
+    return true;
 }
 
 // TODO: rewrite this smarter!

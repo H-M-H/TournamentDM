@@ -104,7 +104,8 @@ void CLaser::Snap(int SnappingClient)
         if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS &&
                 GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID != -1 &&
                 GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID] &&
-                GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena)
+                (GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena &&
+                GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != -1))
             return;
     }
     else

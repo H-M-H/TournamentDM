@@ -44,7 +44,7 @@ void CPickup::Tick()
 			return;
 	}
 	// Check if a player intersected us
-	CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, 20.0f, 0);
+    CCharacter *pChr = GameServer()->m_World.ClosestPlayingCharacter(m_Pos, 20.0f, 0);
     if(pChr && pChr->IsAlive() && (pChr->m_Arena == m_Arena || m_Arena == -2))
 	{
         if(m_Arena == -2)
@@ -143,13 +143,13 @@ void CPickup::Snap(int SnappingClient)
         {
             if(g_Config.m_SvArenas)
             {
-            if(GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena == m_Arena)
+            if(GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena == m_Arena || GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena == -1)
                 if(m_SpawnTick != -1)
                     return;
             }
             else
             {
-                if(GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena)
+                if(GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena && GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != -1)
                     return;
 
                 if(m_SpawnTick != -1)

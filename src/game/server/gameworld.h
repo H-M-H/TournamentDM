@@ -23,6 +23,7 @@ public:
 		ENTTYPE_PICKUP,
 		ENTTYPE_FLAG,
 		ENTTYPE_CHARACTER,
+        ENTTYPE_WALLTELE,
 		NUM_ENTTYPES
 	};
 
@@ -102,6 +103,9 @@ public:
 			Returns a pointer to the closest CCharacter or NULL if no CCharacter is close enough.
 	*/
 	class CCharacter *ClosestCharacter(vec2 Pos, float Radius, CEntity *ppNotThis);
+
+    /* same as above but leaves out specating tees (Arena == -1)*/
+    class CCharacter *ClosestPlayingCharacter(vec2 Pos, float Radius, CEntity *pNotThis);
 
 	/*
 		Function: insert_entity

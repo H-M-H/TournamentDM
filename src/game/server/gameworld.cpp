@@ -287,3 +287,29 @@ CCharacter *CGameWorld::ClosestCharacter(vec2 Pos, float Radius, CEntity *pNotTh
 
 	return pClosest;
 }
+
+CCharacter *CGameWorld::ClosestPlayingCharacter(vec2 Pos, float Radius, CEntity *pNotThis)
+{
+    // Find other players
+    float ClosestRange = Radius*2;
+    CCharacter *pClosest = 0;
+
+    CCharacter *p = (CCharacter *)GameServer()->m_World.FindFirst(ENTTYPE_CHARACTER);
+    for(; p; p = (CCharacter *)p->TypeNext())
+    {
+        if(p == pNotThis || p->m_Arena == -1)
+            continue;
+
+        float Len = distance(Pos, p->m_Pos);
+        if(Len < p->m_ProximityRadius+Radius)
+        {
+            if(Len < ClosestRange)
+            {
+                ClosestRange = Len;
+                pClosest = p;
+            }
+        }
+    }
+
+    return pClosest;
+}

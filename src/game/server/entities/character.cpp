@@ -106,6 +106,12 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	return true;
 }
 
+void CCharacter::Teleport(vec2 Pos)
+{
+    m_Pos = Pos;
+    m_Core.m_Pos = Pos;
+}
+
 void CCharacter::Destroy()
 {
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCID()] = 0;
@@ -770,6 +776,9 @@ bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
 {
 	m_Core.m_Vel += Force;
 
+    if(GameServer()->m_pController->m_GameType == IGameController::GAMETYPE_TOURNDM && m_Arena == -1)
+        return false;
+
 	if(GameServer()->m_pController->IsFriendlyFire(m_pPlayer->GetCID(), From) && !g_Config.m_SvTeamdamage)
 		return false;
 
@@ -904,7 +913,12 @@ void CCharacter::Snap(int SnappingClient)
         if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS &&
                 GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID != -1 &&
                 GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID] &&
-                GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena)
+                (GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena &&
+                 GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != -1))
+            return;
+
+        // Spectators don not want/need to see spectating tees
+        if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS && m_Arena == -1)
             return;
     }
     else
