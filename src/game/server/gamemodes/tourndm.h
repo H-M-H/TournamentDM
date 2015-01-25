@@ -38,6 +38,8 @@ public:
 
     class CGameControllerArena* Arena(int ID) { return m_apArenas[ID]; }
 
+    static void ConArenaColor(IConsole::IResult *pResult, void *pUserData);
+
     enum
     {
         NUM_ARENAS=8
@@ -83,8 +85,6 @@ private:
 
     // stores g_Config.m_SvBracket for every tourney
     int m_BracketMode;
-
-    int* m_aArenaColors[8];
 };
 
 

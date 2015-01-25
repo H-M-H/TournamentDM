@@ -73,6 +73,17 @@ CGameControllerTournDM::CGameControllerTournDM(class CGameContext *pGameServer, 
     m_aNumSpawnPoints[6] = 0;
     m_aNumSpawnPoints[7] = 0;
     m_aNumSpawnPoints[8] = 0;
+
+    m_aArenaColors[0] = 65387;
+    m_aArenaColors[1] = 10223467;
+    m_aArenaColors[2] = 2031418;
+    m_aArenaColors[3] = 5504826;
+    m_aArenaColors[4] = 8126266;
+    m_aArenaColors[5] = 12582714;
+    m_aArenaColors[6] = 0;
+    m_aArenaColors[7] = 255;
+
+    GameServer()->Console()->Register("arena_color", "i?i", CFGFLAG_SERVER, ConArenaColor, GameServer(), "Set color of arena to color");
 }
 
 void CGameControllerTournDM::UpdateArenaStates()
@@ -727,25 +738,18 @@ void CGameControllerTournDM::StartTourney()
 
     m_NumActiveParticipants = m_NumParticipants;
 
-    m_aArenaColors[0] = &g_Config.m_SvArenaColor1;
-    m_aArenaColors[1] = &g_Config.m_SvArenaColor2;
-    m_aArenaColors[2] = &g_Config.m_SvArenaColor3;
-    m_aArenaColors[3] = &g_Config.m_SvArenaColor4;
-    m_aArenaColors[4] = &g_Config.m_SvArenaColor5;
-    m_aArenaColors[5] = &g_Config.m_SvArenaColor6;
-    m_aArenaColors[6] = &g_Config.m_SvArenaColor7;
-    m_aArenaColors[7] = &g_Config.m_SvArenaColor8;
 
     if(g_Config.m_SvRandColor)
     {
         for (int i = 0; i < NUM_ARENAS - 1; i++)
         {
             int j = i + rand() / (RAND_MAX / (NUM_ARENAS - i) + 1);
-            int* t = m_aArenaColors[j];
+            int t = m_aArenaColors[j];
             m_aArenaColors[j] = m_aArenaColors[i];
             m_aArenaColors[i] = t;
         }
     }
+
 
     GameServer()->SendBroadcast("Tournament started, Good Luck !", -1);
 
@@ -844,8 +848,8 @@ void CGameControllerTournDM::OnPlayerInfoChange(class CPlayer *pP)
     }
 
     pP->m_TeeInfos.m_UseCustomColor = 1;
-    pP->m_TeeInfos.m_ColorBody = *m_aArenaColors[pP->m_Arena];
-    pP->m_TeeInfos.m_ColorFeet = *m_aArenaColors[pP->m_Arena];
+    pP->m_TeeInfos.m_ColorBody = m_aArenaColors[pP->m_Arena];
+    pP->m_TeeInfos.m_ColorFeet = m_aArenaColors[pP->m_Arena];
 }
 
 void CGameControllerTournDM::Snap(int SnappingClient)
@@ -928,6 +932,30 @@ void CGameControllerTournDM::AddTourneyState(char* Name, int size)
 
     str_append(Name, aBuf, size);
 }
+
+
+// /////////////////////////////////////////////////////////////// //
+
+
+void CGameControllerTournDM::ConArenaColor(IConsole::IResult *pResult, void *pUserData)
+{
+    CGameContext *pSelf = (CGameContext *)pUserData;
+
+    char aBuf[64];
+
+    if(pResult->NumArguments() == 1)
+    {
+        str_format(aBuf, sizeof(aBuf), "color of arena %d: %d", clamp(pResult->GetInteger(0), 0, 7), pSelf->m_pController->m_aArenaColors[clamp(pResult->GetInteger(0), 0, 7)]);
+        pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+    }
+    else if(pResult->NumArguments() == 2)
+    {
+        pSelf->m_pController->m_aArenaColors[clamp(pResult->GetInteger(0), 0, 7)] = clamp(pResult->GetInteger(1), 0, 0xFFFFFF);
+        str_format(aBuf, sizeof(aBuf), "%d", clamp(pResult->GetInteger(1), 0, 0xFFFFFF));
+        pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+    }
+}
+
 
 // /////////////////////////////////////////////////////////////// //
 

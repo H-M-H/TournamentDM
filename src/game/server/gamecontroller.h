@@ -84,6 +84,8 @@ public:
         SUBTYPE_GRENADE=2
     };
 
+    int m_aArenaColors[8];
+
 	bool IsTeamplay() const;
 	bool IsGameOver() const { return m_GameOverTick != -1; }
 

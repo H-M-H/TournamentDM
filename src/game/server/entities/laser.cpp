@@ -107,6 +107,10 @@ void CLaser::Snap(int SnappingClient)
                 (GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != m_Arena &&
                 GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena != -1))
             return;
+
+        // Spectators don not want/need to see spectating tees laser
+        if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS && m_Arena == -1)
+            return;
     }
     else
     {

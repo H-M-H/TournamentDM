@@ -81,15 +81,6 @@ MACRO_CONFIG_INT(SvExplosionKillDmg, sv_explosion_kill_dmg, 4, 0, 6, CFGFLAG_SER
 
 MACRO_CONFIG_INT(SvRandColor, sv_random_color_order, 1, 0, 1, CFGFLAG_SERVER, "Randomize colororder of arenas")
 
-MACRO_CONFIG_INT(SvArenaColor1, sv_arena_color_1, 65387, 0, 0xFFFFFF, CFGFLAG_SERVER, "Color of tee in this arena")
-MACRO_CONFIG_INT(SvArenaColor2, sv_arena_color_2, 10223467, 0, 0xFFFFFF, CFGFLAG_SERVER, "Color of tee in this arena")
-MACRO_CONFIG_INT(SvArenaColor3, sv_arena_color_3, 2031418, 0, 0xFFFFFF, CFGFLAG_SERVER, "Color of tee in this arena")
-MACRO_CONFIG_INT(SvArenaColor4, sv_arena_color_4, 5504826, 0, 0xFFFFFF, CFGFLAG_SERVER, "Color of tee in this arena")
-MACRO_CONFIG_INT(SvArenaColor5, sv_arena_color_5, 8126266, 0, 0xFFFFFF, CFGFLAG_SERVER, "Color of tee in this arena")
-MACRO_CONFIG_INT(SvArenaColor6, sv_arena_color_6, 12582714, 0, 0xFFFFFF, CFGFLAG_SERVER, "Color of tee in this arena")
-MACRO_CONFIG_INT(SvArenaColor7, sv_arena_color_7, 0, 0, 0xFFFFFF, CFGFLAG_SERVER, "Color of tee in this arena")
-MACRO_CONFIG_INT(SvArenaColor8, sv_arena_color_8, 255, 0, 0xFFFFFF, CFGFLAG_SERVER, "Color of tee in this arena")
-
 MACRO_CONFIG_INT(SvSpectatorSlots, sv_spectator_slots, 0, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Number of slots to reserve for spectators")
 MACRO_CONFIG_INT(SvTeambalanceTime, sv_teambalance_time, 1, 0, 1000, CFGFLAG_SERVER, "How many minutes to wait before autobalancing teams")
 MACRO_CONFIG_INT(SvInactiveKickTime, sv_inactivekick_time, 0, 0, 1000, CFGFLAG_SERVER, "How many minutes to wait before taking care of inactive players")
