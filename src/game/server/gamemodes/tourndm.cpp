@@ -83,7 +83,7 @@ CGameControllerTournDM::CGameControllerTournDM(class CGameContext *pGameServer, 
     m_aArenaColors[6] = 0;
     m_aArenaColors[7] = 255;
 
-    GameServer()->Console()->Register("arena_color", "i?i", CFGFLAG_SERVER, ConArenaColor, GameServer(), "Set color of arena to color");
+    GameServer()->Console()->Register("arena_color", "?i?i", CFGFLAG_SERVER, ConArenaColor, GameServer(), "Set color of arena to color");
 }
 
 void CGameControllerTournDM::UpdateArenaStates()
@@ -953,6 +953,14 @@ void CGameControllerTournDM::ConArenaColor(IConsole::IResult *pResult, void *pUs
         pSelf->m_pController->m_aArenaColors[clamp(pResult->GetInteger(0), 0, 7)] = clamp(pResult->GetInteger(1), 0, 0xFFFFFF);
         str_format(aBuf, sizeof(aBuf), "%d", clamp(pResult->GetInteger(1), 0, 0xFFFFFF));
         pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+    }
+    else if(pResult->NumArguments() == 0)
+    {
+        for(int i = 0; i < NUM_ARENAS; i++)
+        {
+            str_format(aBuf, sizeof(aBuf), "color of arena %d: %d", i, pSelf->m_pController->m_aArenaColors[i]);
+            pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+        }
     }
 }
 

@@ -918,7 +918,9 @@ void CCharacter::Snap(int SnappingClient)
             return;
 
         // Spectators don not want/need to see spectating tees
-        if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS && m_Arena == -1)
+        if(GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS &&
+                GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID == -1 &&
+                m_Arena == -1)
             return;
     }
     else
