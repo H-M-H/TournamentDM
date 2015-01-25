@@ -612,7 +612,7 @@ void CGameControllerTournDM::OnCharacterSpawn(CCharacter *pChr)
         {
             pChr->GiveWeapon(WEAPON_SHOTGUN, -1);
             pChr->GiveWeapon(WEAPON_GRENADE, -1);
-            pChr->GiveWeapon(WEAPON_RIFLE, -1);;
+            pChr->GiveWeapon(WEAPON_RIFLE, -1);
         }
     }
         break;
@@ -634,6 +634,10 @@ void CGameControllerTournDM::OnCharacterSpawn(CCharacter *pChr)
         pChr->GiveWeapon(WEAPON_GRENADE, -1);
     }
     }
+
+
+    if(pChr->m_Arena == -1)
+        pChr->GiveWeapon(WEAPON_NINJA, -1);
 
     if(!pChr->GetPlayer()->m_Participating)
         pChr->GetPlayer()->m_Score = -1000;

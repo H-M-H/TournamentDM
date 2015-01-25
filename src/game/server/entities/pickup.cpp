@@ -166,7 +166,7 @@ void CPickup::Snap(int SnappingClient)
             if(NetworkClipped(SnappingClient))
                 return;
 
-            if(GameServer()->m_apPlayers[SnappingClient]->m_Arena == m_Arena)
+            if(GameServer()->m_apPlayers[SnappingClient]->m_Arena == m_Arena || (m_Type == POWERUP_NINJA && m_Arena == -2))
                 if(m_SpawnTick != -1)
                     return;
         }

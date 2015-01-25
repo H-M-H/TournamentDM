@@ -78,6 +78,7 @@ MACRO_CONFIG_INT(SvRoundWarmUp, sv_round_warmup, 15, 0, 500, CFGFLAG_SERVER, "Ti
 MACRO_CONFIG_INT(SvColorize, sv_colorize, 1, 0, 1, CFGFLAG_SERVER, "Colorize tees in arenas")
 MACRO_CONFIG_INT(SvClipPickups, sv_clippickups, 0, 0, 1, CFGFLAG_SERVER, "Clips Pickups for spectators, should be used if there are many")
 MACRO_CONFIG_INT(SvExplosionKillDmg, sv_explosion_kill_dmg, 4, 0, 6, CFGFLAG_SERVER, "minimum damage required for a kill on grenade mode")
+MACRO_CONFIG_INT(SvWallNinja, sv_wall_ninja, 0, 0, 1, CFGFLAG_SERVER, "whether spectating tees can ninja through walls")
 
 MACRO_CONFIG_INT(SvRandColor, sv_random_color_order, 1, 0, 1, CFGFLAG_SERVER, "Randomize colororder of arenas")
 

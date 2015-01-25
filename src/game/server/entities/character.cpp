@@ -101,6 +101,8 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	GameServer()->m_World.InsertEntity(this);
 	m_Alive = true;
 
+    m_WallHit = false;
+
 	GameServer()->m_pController->OnCharacterSpawn(this);
 
 	return true;
@@ -145,20 +147,23 @@ bool CCharacter::IsGrounded()
 void CCharacter::HandleNinja()
 {
 	if(m_ActiveWeapon != WEAPON_NINJA)
-		return;
+        return;
 
-	if ((Server()->Tick() - m_Ninja.m_ActivationTick) > (g_pData->m_Weapons.m_Ninja.m_Duration * Server()->TickSpeed() / 1000))
-	{
-		// time's up, return
-		m_aWeapons[WEAPON_NINJA].m_Got = false;
-		m_ActiveWeapon = m_LastWeapon;
+    if(!(m_Arena == -1 && GameServer()->m_pController->m_GameType == 5))
+    {
+        if ((Server()->Tick() - m_Ninja.m_ActivationTick) > (g_pData->m_Weapons.m_Ninja.m_Duration * Server()->TickSpeed() / 1000))
+        {
+            // time's up, return
+            m_aWeapons[WEAPON_NINJA].m_Got = false;
+            m_ActiveWeapon = m_LastWeapon;
 
-		SetWeapon(m_ActiveWeapon);
-		return;
-	}
+            SetWeapon(m_ActiveWeapon);
+            return;
+        }
 
-	// force ninja Weapon
-	SetWeapon(WEAPON_NINJA);
+        // force ninja Weapon
+        SetWeapon(WEAPON_NINJA);
+    }
 
 	m_Ninja.m_CurrentMoveTime--;
 
@@ -166,6 +171,7 @@ void CCharacter::HandleNinja()
 	{
 		// reset velocity
 		m_Core.m_Vel = m_Ninja.m_ActivationDir*m_Ninja.m_OldVelAmount;
+        m_WallHit = false;
 	}
 
 	if (m_Ninja.m_CurrentMoveTime > 0)
@@ -173,7 +179,10 @@ void CCharacter::HandleNinja()
 		// Set velocity
 		m_Core.m_Vel = m_Ninja.m_ActivationDir * g_pData->m_Weapons.m_Ninja.m_Velocity;
 		vec2 OldPos = m_Pos;
-		GameServer()->Collision()->MoveBox(&m_Core.m_Pos, &m_Core.m_Vel, vec2(m_ProximityRadius, m_ProximityRadius), 0.f);
+        if(g_Config.m_SvWallNinja && m_Arena == -1 && GameServer()->m_pController->m_GameType == IGameController::GAMETYPE_TOURNDM && !m_WallHit)
+            m_WallHit = GameServer()->Collision()->WallNinja(&m_Core.m_Pos, &m_Core.m_Vel, vec2(m_ProximityRadius, m_ProximityRadius));
+        else
+            GameServer()->Collision()->MoveBox(&m_Core.m_Pos, &m_Core.m_Vel, vec2(m_ProximityRadius, m_ProximityRadius), 0.f);
 
 		// reset velocity so the client doesn't predict stuff
 		m_Core.m_Vel = vec2(0.f, 0.f);
@@ -225,7 +234,7 @@ void CCharacter::HandleNinja()
 void CCharacter::DoWeaponSwitch()
 {
 	// make sure we can switch
-	if(m_ReloadTimer != 0 || m_QueuedWeapon == -1 || m_aWeapons[WEAPON_NINJA].m_Got)
+    if(m_ReloadTimer != 0 || m_QueuedWeapon == -1 || (m_aWeapons[WEAPON_NINJA].m_Got && (m_Arena != -1 || GameServer()->m_pController->m_GameType != IGameController::GAMETYPE_TOURNDM)))
 		return;
 
 	// switch Weapon

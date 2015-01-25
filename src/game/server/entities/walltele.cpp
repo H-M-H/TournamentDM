@@ -2,6 +2,43 @@
 #include <game/mapitems.h>
 #include "walltele.h"
 
+CTeleDisp::CTeleDisp(CGameWorld *pGameWorld, vec2 Pos)
+: CEntity(pGameWorld, CGameWorld::ENTTYPE_TELEDISP)
+{
+    m_Pos = Pos;
+    m_StartTick = Server()->Tick();
+
+    GameWorld()->InsertEntity(this);
+}
+
+void CTeleDisp::Snap(int SnappingClient)
+{
+    CPlayer* pP = GameServer()->m_apPlayers[SnappingClient];
+
+    if(pP->m_Arena != -1 ||
+            (pP->GetTeam() == TEAM_SPECTATORS &&
+             (pP->m_SpectatorID == -1 ||
+              !GameServer()->m_apPlayers[pP->m_SpectatorID] ||
+              GameServer()->m_apPlayers[pP->m_SpectatorID]->m_Arena != -1)))
+        return;
+
+    if(distance(pP->m_ViewPos, m_Pos) > 380)
+        return;
+
+    CNetObj_Projectile *pProj = static_cast<CNetObj_Projectile *>(Server()->SnapNewItem(NETOBJTYPE_PROJECTILE, m_ID, sizeof(CNetObj_Projectile)));
+    if(pProj)
+    {
+        pProj->m_X = (int)m_Pos.x;
+        pProj->m_Y = (int)m_Pos.y;
+        pProj->m_VelX = 0;
+        pProj->m_VelY = 0;
+        pProj->m_StartTick = m_StartTick;
+        pProj->m_Type = WEAPON_NINJA;
+    }
+}
+
+// ///////////////////////////////////////////// //
+
 CWallTele::CWallTele(CGameWorld *pGameWorld, vec2 Pos)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_WALLTELE)
 {
@@ -34,6 +71,14 @@ CWallTele::CWallTele(CGameWorld *pGameWorld, vec2 Pos)
     GameWorld()->InsertEntity(this);
     SetPosOut();
 
+    // create a nice looking arrow :3
+    for(int i = -1; i < 2; i +=2)
+        new CTeleDisp(GameWorld(), m_Pos + m_Direction*i*10);
+
+    for(int i = -1; i < 2; i +=2)
+        new CTeleDisp(GameWorld(), m_Pos + vec2(m_Direction.y, m_Direction.x)*i*10 + m_Direction*7);
+
+
     m_StartTick = Server()->Tick();
 }
 
@@ -42,35 +87,39 @@ void CWallTele::Tick()
     for(int i = 0; i < MAX_CLIENTS; i++)
         if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->m_Arena == -1 &&
                 GameServer()->m_apPlayers[i]->GetCharacter() &&
-                distance(GameServer()->m_apPlayers[i]->GetCharacter()->m_Pos, m_Pos) < 64 &&
-                !GameServer()->Collision()->IntersectLine(m_Pos, GameServer()->m_apPlayers[i]->GetCharacter()->m_Pos, 0x0, 0x0))
+                abs(GameServer()->m_apPlayers[i]->GetCharacter()->m_Pos.x - m_Pos.x) < 16 &&
+                abs(GameServer()->m_apPlayers[i]->GetCharacter()->m_Pos.y - m_Pos.y) < 16)
             GameServer()->m_apPlayers[i]->GetCharacter()->Teleport(m_PosOut);
-}
-
-void CWallTele::Snap(int SnappingClient)
-{
-    if(!((GameServer()->m_apPlayers[SnappingClient]->m_Arena == -1 && GameServer()->m_apPlayers[SnappingClient]->GetTeam() != TEAM_SPECTATORS) ||
-         (GameServer()->m_apPlayers[SnappingClient]->GetTeam() == TEAM_SPECTATORS &&
-          GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID != -1 &&
-          GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID] &&
-          GameServer()->m_apPlayers[GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID]->m_Arena == -1)))
-        return;
-
-    // TODO: make it beatiful :D
-
-    CNetObj_Laser *pObj1 = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID, sizeof(CNetObj_Laser)));
-    if(!pObj1)
-        return;
-
-    pObj1->m_X = (int)m_Pos.x;
-    pObj1->m_Y = (int)m_Pos.y;
-    pObj1->m_FromX = (int)m_Pos.x;
-    pObj1->m_FromY = (int)m_Pos.y;
-    pObj1->m_StartTick = m_StartTick;
 }
 
 void CWallTele::SetPosOut()
 {
     if(!GameServer()->Collision()->ThroughWall(m_Pos, m_Direction, &m_PosOut))
         GameWorld()->DestroyEntity(this);
+}
+
+void CWallTele::Snap(int SnappingClient)
+{
+    CPlayer* pP = GameServer()->m_apPlayers[SnappingClient];
+
+    if(pP->m_Arena != -1 ||
+            (pP->GetTeam() == TEAM_SPECTATORS &&
+             (pP->m_SpectatorID == -1 ||
+              !GameServer()->m_apPlayers[pP->m_SpectatorID] ||
+              GameServer()->m_apPlayers[pP->m_SpectatorID]->m_Arena != -1)))
+        return;
+
+    if(distance(pP->m_ViewPos, m_Pos) > 380)
+        return;
+
+    CNetObj_Projectile *pProj = static_cast<CNetObj_Projectile *>(Server()->SnapNewItem(NETOBJTYPE_PROJECTILE, m_ID, sizeof(CNetObj_Projectile)));
+    if(pProj)
+    {
+        pProj->m_X = (int)m_Pos.x;
+        pProj->m_Y = (int)m_Pos.y;
+        pProj->m_VelX = 0;
+        pProj->m_VelY = 0;
+        pProj->m_StartTick = m_StartTick;
+        pProj->m_Type = WEAPON_NINJA;
+    }
 }
