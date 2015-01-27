@@ -127,7 +127,6 @@ private:
         int m_OldVelAmount;
 	} m_Ninja;
 
-    bool m_WallHit;
 
 	// the player core for the physics
 	CCharacterCore m_Core;

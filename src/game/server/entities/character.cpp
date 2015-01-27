@@ -101,8 +101,6 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	GameServer()->m_World.InsertEntity(this);
 	m_Alive = true;
 
-    m_WallHit = false;
-
 	GameServer()->m_pController->OnCharacterSpawn(this);
 
 	return true;
@@ -171,7 +169,6 @@ void CCharacter::HandleNinja()
 	{
 		// reset velocity
 		m_Core.m_Vel = m_Ninja.m_ActivationDir*m_Ninja.m_OldVelAmount;
-        m_WallHit = false;
 	}
 
 	if (m_Ninja.m_CurrentMoveTime > 0)
@@ -179,8 +176,11 @@ void CCharacter::HandleNinja()
 		// Set velocity
 		m_Core.m_Vel = m_Ninja.m_ActivationDir * g_pData->m_Weapons.m_Ninja.m_Velocity;
 		vec2 OldPos = m_Pos;
-        if(g_Config.m_SvWallNinja && m_Arena == -1 && GameServer()->m_pController->m_GameType == IGameController::GAMETYPE_TOURNDM && !m_WallHit)
-            m_WallHit = GameServer()->Collision()->WallNinja(&m_Core.m_Pos, &m_Core.m_Vel, vec2(m_ProximityRadius, m_ProximityRadius));
+        if(g_Config.m_SvWallNinja && m_Arena == -1 && GameServer()->m_pController->m_GameType == IGameController::GAMETYPE_TOURNDM)
+        {
+            if(GameServer()->Collision()->WallNinja(&m_Core.m_Pos, &m_Core.m_Vel, vec2(m_ProximityRadius, m_ProximityRadius)))
+                m_Ninja.m_CurrentMoveTime = 1;
+        }
         else
             GameServer()->Collision()->MoveBox(&m_Core.m_Pos, &m_Core.m_Vel, vec2(m_ProximityRadius, m_ProximityRadius), 0.f);
 
