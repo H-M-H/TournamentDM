@@ -370,7 +370,7 @@ int io_flush(IOHANDLE io)
 	return 0;
 }
 
-void *thread_create(void (*threadfunc)(void *), void *u)
+void *tw_thread_create(void (*threadfunc)(void *), void *u)
 {
 #if defined(CONF_FAMILY_UNIX)
 	pthread_t id;
@@ -474,7 +474,7 @@ void lock_destroy(LOCK lock)
 	mem_free(lock);
 }
 
-int lock_try(LOCK lock)
+int tw_lock_try(LOCK lock)
 {
 #if defined(CONF_FAMILY_UNIX)
 	return pthread_mutex_trylock((LOCKINTERNAL *)lock);
@@ -496,7 +496,7 @@ void lock_wait(LOCK lock)
 #endif
 }
 
-void lock_release(LOCK lock)
+void tw_lock_release(LOCK lock)
 {
 #if defined(CONF_FAMILY_UNIX)
 	pthread_mutex_unlock((LOCKINTERNAL *)lock);

@@ -360,7 +360,7 @@ void thread_sleep(int milliseconds);
 		user - Pointer to pass to the thread.
 
 */
-void *thread_create(void (*threadfunc)(void *), void *user);
+void *tw_thread_create(void (*threadfunc)(void *), void *user);
 
 /*
 	Function: thread_wait
@@ -403,9 +403,9 @@ typedef void* LOCK;
 LOCK lock_create();
 void lock_destroy(LOCK lock);
 
-int lock_try(LOCK lock);
+int tw_lock_try(LOCK lock);
 void lock_wait(LOCK lock);
-void lock_release(LOCK lock);
+void tw_lock_release(LOCK lock);
 
 
 /* Group: Semaphores */
