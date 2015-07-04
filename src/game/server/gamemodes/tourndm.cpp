@@ -678,6 +678,12 @@ void CGameControllerTournDM::DoWincheck()
                    }
                }
        }
+       else
+          if(!m_NumActiveParticipants)
+          {
+             GameServer()->SendChatTarget(-1, "No winner, tourney is over !");
+             EndRound();
+          }
     }
 }
 
@@ -930,7 +936,7 @@ void CGameControllerTournDM::AddTourneyState(char* Name, int size)
     else if (!m_TourneyStarted && m_NumParticipants >= 2)
         str_format(aBuf, sizeof(aBuf), " - [starting in %d seconds]", m_Warmup/Server()->TickSpeed());
     else if (m_TourneyStarted && m_GameOverTick == -1)
-        str_format(aBuf, sizeof(aBuf), " - [%d players left]", m_NumActiveParticipants);
+        str_format(aBuf, sizeof(aBuf), " - [%d player(s) left]", m_NumActiveParticipants);
     else if (m_TourneyStarted && m_GameOverTick != -1)
         str_format(aBuf, sizeof(aBuf), " - [restarting]");
 
@@ -1020,6 +1026,8 @@ void CGameControllerArena::OnPlayerLeave(int CID)
     int ID = OnPlayerArenaLeave(CID);
     if(m_NumPlayers == 1 && ID != -1)
         EndRound(!ID, true);
+    else
+       Controller()->m_NumActiveParticipants--;
 }
 
 int CGameControllerArena::OnPlayerArenaLeave(int CID)
@@ -1105,12 +1113,18 @@ void CGameControllerArena::StartFight()
 
 void CGameControllerArena::EndRound(int winnerID, bool Left)
 {
-    if(!m_RoundRunning)
-        return;
+   char aBuf[256];
+   if (!m_RoundRunning)
+   {
+      if(Left)
+         Controller()->m_NumActiveParticipants--;
+      if(m_apOpponents[winnerID])
+              str_format(aBuf, sizeof(aBuf), "'%s' won a round !", Server()->ClientName(m_apOpponents[winnerID]->GetCID()));
+      return;
+   }
 
     m_RoundRunning = false;
 
-    char aBuf[256];
     if(m_NumPlayers == 2)
         str_format(aBuf, sizeof(aBuf), "'%s' defeated '%s' !", Server()->ClientName(m_apOpponents[winnerID]->GetCID()), Server()->ClientName(m_apOpponents[!winnerID]->GetCID()));
     else if(m_apOpponents[winnerID])
