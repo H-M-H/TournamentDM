@@ -128,6 +128,7 @@ void CGameControllerTournDM::SignIn(int CID)
     char aBuf[128];
     str_format(aBuf, sizeof(aBuf), "'%s' joined the tournament !", Server()->ClientName(CID));
     GameServer()->SendChatTarget(-1, aBuf);
+    GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
     GameServer()->m_apPlayers[CID]->m_Score = 0;
 
     // TID is gonna be corrected at tourney start, this here is only to save the join order
@@ -139,6 +140,7 @@ void CGameControllerTournDM::SignIn(int CID)
     {
         GameServer()->SendChatTarget(-1, "You can join the tourney until warmup is over");
         GameServer()->SendChatTarget(-1, "GO GO GO !!!");
+        GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", "Tourneywarmup started");
     }
 }
 
@@ -667,6 +669,7 @@ void CGameControllerTournDM::DoWincheck()
                        char aBuf[256];
                        str_format(aBuf, sizeof(aBuf), "'%s' wins the tournament !", Server()->ClientName(m_apBracketPlayers[i]->GetCID()));
                        GameServer()->SendChatTarget(-1, aBuf);
+                       GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
                        GameServer()->SendChatTarget(-1, "Congratulations !");
                        EndRound();
                        break;
@@ -682,6 +685,7 @@ void CGameControllerTournDM::DoWincheck()
           if(!m_NumActiveParticipants)
           {
              GameServer()->SendChatTarget(-1, "No winner, tourney is over !");
+             GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", "No winner, tourney is over !");
              EndRound();
           }
     }
@@ -762,6 +766,8 @@ void CGameControllerTournDM::StartTourney()
 
 
     GameServer()->SendBroadcast("Tournament started, Good Luck !", -1);
+    GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", "Tournament started");
+
 
     // get rid of odd players and let them fight first
     HandleOddPlayers();
@@ -1119,7 +1125,11 @@ void CGameControllerArena::EndRound(int winnerID, bool Left)
       if(Left)
          Controller()->m_NumActiveParticipants--;
       if(m_apOpponents[winnerID])
+      {
               str_format(aBuf, sizeof(aBuf), "'%s' won a round !", Server()->ClientName(m_apOpponents[winnerID]->GetCID()));
+              GameServer()->SendChatTarget(-1, aBuf);
+              GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
+      }
       return;
    }
 
@@ -1131,7 +1141,10 @@ void CGameControllerArena::EndRound(int winnerID, bool Left)
         str_format(aBuf, sizeof(aBuf), "'%s' won a round !", Server()->ClientName(m_apOpponents[winnerID]->GetCID()));
 
     if(m_NumPlayers)
+    {
         GameServer()->SendChatTarget(-1, aBuf);
+        GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
+    }
 
     if(m_NumPlayers == 2)
     {
